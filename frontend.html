@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Kendaraan Operasional - Monitoring Harian</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .full-page-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #f8fafc; z-index: 9999; overflow-y: auto;
+        }
+        .view-section { transition: all 0.3s ease; }
+        .bg-operasional { background-color: #0ea5e9; } /* Biru */
+        .bg-project { background-color: #f59e0b; }     /* Amber/Oranye */
+        .bg-struktural { background-color: #10b981; }  /* Emerald/Hijau */
+        .blogger-hidden { display: none !important; }
+        
+        /* Smooth Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="full-page-overlay p-2 md:p-6">
+    <!-- Configuration -->
+    <script>
+        const IS_PREVIEW = true; 
+        const GAS_URL = "URL_DEPLOY_GAS_ANDA_DISINI";
+        
+        // Data Dummy Terupdate sesuai Kategori Gambar
+        const DUMMY_VEHICLES = [
+            { id: "V1", nama: "EXPANDER", plat: "B 2094 UYN", kategori: "Operasional Harian", status: "Tersedia" },
+            { id: "V2", nama: "AVANZA", plat: "B 2386 UYV", kategori: "Operasional Harian", status: "Tersedia" },
+            { id: "V6", nama: "VELLOZ", plat: "B 1181 DKO", kategori: "Operasional Harian", status: "Tersedia" },
+            { id: "V3", nama: "TOYOTA INNOVA", plat: "BG 1896 NH", kategori: "Project", status: "Tersedia" },
+            { id: "V4", nama: "TOYOTA HILUX", plat: "B 9420 UBC", kategori: "Project", status: "Tersedia" },
+            { id: "V7", nama: "MITSUBISHI TRITON", plat: "BG 8587 GD", kategori: "Project", status: "Tersedia" },
+            { id: "V5", nama: "INNOVA ZENIX", plat: "B 1083 VZH", kategori: "Operasional Struktural", status: "Tersedia" },
+            { id: "V8", nama: "HONDA BRV", plat: "B 1625 RZF", kategori: "Operasional Struktural", status: "Tersedia" }
+        ];
+        const DUMMY_BOOKINGS = [
+            { id: "B1", nama: "TEDJO", divisi: "MBG", id_kendaraan: "V1", kendaraan: "EXPANDER", plat: "B 2094 UYN", tgl_mulai: "2026-04-27", tgl_selesai: "2026-04-27", tujuan: "MBG", status_approval: "Approved", driver: "-", keterangan: "Urgent" }
+        ];
+    </script>
+
+    <!-- Header Navigation -->
+    <nav class="max-w-[1600px] mx-auto flex flex-wrap justify-between items-center mb-6 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-slate-800 leading-tight">FleetMonitoring</h1>
+                <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Vehicle Management System</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="switchView('home')" class="px-4 py-2 rounded-xl text-sm font-semibold hover:bg-slate-100 transition text-slate-600">Booking</button>
+            <button onclick="switchView('check')" class="px-4 py-2 rounded-xl text-sm font-semibold hover:bg-slate-100 transition text-slate-600">Cek Status</button>
+            <button id="adminNavBtn" onclick="switchView('login')" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-black transition">Admin Portal</button>
+            <button id="logoutBtn" onclick="doLogout()" class="hidden bg-red-50 text-red-600 px-5 py-2 rounded-xl text-sm font-bold hover:bg-red-100 transition border border-red-200">Keluar</button>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="max-w-[1600px] mx-auto">
+        
+        <!-- VIEW: HOME (Grid Kendaraan Terbagi Section) -->
+        <section id="view-home" class="view-section">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Grid Area dengan 3 Section -->
+                <div class="flex-1 space-y-10">
+                    
+                    <!-- Section 1: Operasional Harian -->
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-2 h-8 bg-operasional rounded-full"></div>
+                            <h2 class="text-xl font-black text-slate-800 tracking-tight">OPERASIONAL HARIAN</h2>
+                        </div>
+                        <div id="grid-harian" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <!-- Rendered via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Project -->
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-2 h-8 bg-project rounded-full"></div>
+                            <h2 class="text-xl font-black text-slate-800 tracking-tight">PROJECT</h2>
+                        </div>
+                        <div id="grid-project" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <!-- Rendered via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Operasional Struktural -->
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-2 h-8 bg-struktural rounded-full"></div>
+                            <h2 class="text-xl font-black text-slate-800 tracking-tight">OPERASIONAL STRUKTURAL</h2>
+                        </div>
+                        <div id="grid-struktural" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <!-- Rendered via JS -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Booking Sidebar -->
+                <div class="lg:w-80 bg-white p-6 rounded-3xl shadow-sm border border-slate-200 h-fit sticky top-6">
+                    <div class="flex items-center gap-2 mb-4 border-b pb-3">
+                        <div class="p-2 bg-blue-50 rounded-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <h3 class="font-bold text-slate-800">Detail Booking</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <input type="text" id="formNama" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none text-sm focus:ring-2 focus:ring-blue-500" placeholder="Nama PIC">
+                        <input type="text" id="formDivisi" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none text-sm focus:ring-2 focus:ring-blue-500" placeholder="Divisi">
+                        <div class="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                            <label class="text-[10px] font-bold text-blue-400 uppercase">Armada Terpilih</label>
+                            <input type="text" id="formKendaraan" readonly class="w-full bg-transparent border-none p-0 text-blue-700 font-bold focus:ring-0 text-sm" placeholder="Klik salah satu kartu...">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase px-1">Tanggal Penggunaan</label>
+                            <input type="date" id="formTglMulai" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none text-sm">
+                        </div>
+                        <textarea id="formTujuan" rows="2" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none text-sm focus:ring-2 focus:ring-blue-500" placeholder="Tujuan / Lokasi"></textarea>
+                        <button onclick="submitBooking()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">Ajukan Sekarang</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: MONITORING / ADMIN -->
+        <section id="view-admin" class="view-section hidden">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tight">Monitoring History Harian</h2>
+                        <p class="text-sm text-slate-400">Kelola status kendaraan & persetujuan driver</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="date" id="filterDate" onchange="fetchAdminData()" class="px-4 py-2 border rounded-xl text-sm font-bold bg-slate-50">
+                        <button onclick="openAddVehicle()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-black transition">Tambah Armada</button>
+                    </div>
+                </div>
+
+                <!-- Monitoring Table - Mimicking the Excel Structure -->
+                <div class="space-y-8" id="monitoringContent">
+                    <!-- Section per Kategori akan muncul di sini -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: CHECK STATUS -->
+        <section id="view-check" class="view-section hidden max-w-2xl mx-auto py-10">
+            <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100">
+                <h2 class="text-2xl font-bold mb-2">Lacak Pengajuan</h2>
+                <p class="text-sm text-slate-400 mb-6">Masukkan nama PIC untuk melihat status approval.</p>
+                <div class="flex gap-2 mb-8">
+                    <input type="text" id="searchNIP" class="flex-1 px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-800 transition" placeholder="Cari Nama PIC...">
+                    <button onclick="searchStatus()" class="bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold hover:bg-black transition">Cari</button>
+                </div>
+                <div id="searchResult" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <!-- VIEW: LOGIN -->
+        <section id="view-login" class="view-section hidden max-w-md mx-auto py-12">
+            <div class="bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 text-center">
+                <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-black mb-2 uppercase">Admin Access</h2>
+                <p class="text-xs text-slate-400 mb-6">Silahkan login untuk mengelola fleet harian.</p>
+                <div class="space-y-4">
+                    <input type="text" id="loginUser" class="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none text-sm" placeholder="Username">
+                    <input type="password" id="loginPass" class="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none text-sm" placeholder="Password">
+                    <button onclick="doLogin()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Masuk Dashboard</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Update Detail (Admin) -->
+    <div id="updateModal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center p-4 z-[10000]">
+        <div class="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Update Status Operasional</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Driver / Supir</label>
+                    <input type="text" id="upDriver" class="w-full px-4 py-3 border rounded-xl mt-1 text-sm">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Keterangan Tambahan</label>
+                    <textarea id="upKeterangan" class="w-full px-4 py-3 border rounded-xl mt-1 text-sm" rows="2"></textarea>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Status Approval</label>
+                    <select id="upStatus" class="w-full px-4 py-3 border rounded-xl mt-1 text-sm">
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved (USED)</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 pt-4">
+                    <button onclick="closeUpdateModal()" class="flex-1 py-3 font-bold text-slate-400 text-sm">Batal</button>
+                    <button onclick="saveUpdateStatus()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold text-sm">Simpan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Notification -->
+    <div id="notifModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-[11000]">
+        <div class="bg-white p-6 rounded-2xl max-w-xs w-full text-center shadow-2xl">
+            <div id="notifIcon" class="mb-3 mx-auto w-12 h-12 rounded-full flex items-center justify-center bg-blue-100 text-blue-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <h4 id="notifTitle" class="font-bold mb-1"></h4>
+            <p id="notifMsg" class="text-xs text-slate-500 mb-6"></p>
+            <button onclick="closeNotif()" class="w-full bg-slate-800 text-white py-3 rounded-xl text-sm font-bold">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let appData = { vehicles: IS_PREVIEW ? DUMMY_VEHICLES : [], bookings: IS_PREVIEW ? DUMMY_BOOKINGS : [] };
+    let currentUpdateId = null;
+    let selectedVehicleId = "";
+
+    window.onload = () => {
+        document.getElementById('formTglMulai').valueAsDate = new Date();
+        document.getElementById('filterDate').valueAsDate = new Date();
+        initApp();
+    };
+
+    function initApp() {
+        if (!IS_PREVIEW) refreshPublicData();
+        else renderVehicles();
+    }
+
+    function switchView(viewId) {
+        document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
+        document.getElementById(`view-${viewId}`).classList.remove('hidden');
+    }
+
+    function renderVehicles() {
+        const categories = [
+            { key: "Operasional Harian", grid: "grid-harian", color: "bg-operasional" },
+            { key: "Project", grid: "grid-project", color: "bg-project" },
+            { key: "Operasional Struktural", grid: "grid-struktural", color: "bg-struktural" }
+        ];
+
+        categories.forEach(cat => {
+            const grid = document.getElementById(cat.grid);
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            const filtered = appData.vehicles.filter(v => v.kategori === cat.key);
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-10 text-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 text-xs font-bold uppercase tracking-widest">Belum ada armada</div>`;
+                return;
+            }
+
+            filtered.forEach(v => {
+                grid.innerHTML += `
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group relative overflow-hidden" onclick="selectVehicle('${v.id}', '${v.nama} (${v.plat})')">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-bold ${cat.color} shadow-sm group-hover:scale-110 transition-transform">
+                                ${v.nama.charAt(0)}
+                            </span>
+                            <div class="flex flex-col items-end">
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${v.plat}</span>
+                            </div>
+                        </div>
+                        <h4 class="font-bold text-slate-800 group-hover:text-blue-600 transition truncate">${v.nama}</h4>
+                        <div class="mt-4 flex items-center justify-between">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">STANDBY</span>
+                            </div>
+                            <div class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+    }
+
+    function renderMonitoringTable() {
+        const container = document.getElementById('monitoringContent');
+        container.innerHTML = '';
+        const categories = [
+            { key: "Operasional Harian", color: "bg-sky-500" },
+            { key: "Project", color: "bg-amber-500" },
+            { key: "Operasional Struktural", color: "bg-emerald-500" }
+        ];
+        const filterDate = document.getElementById('filterDate').value;
+
+        categories.forEach(cat => {
+            const catVehicles = appData.vehicles.filter(v => v.kategori === cat.key);
+            if (catVehicles.length === 0) return;
+
+            let html = `
+                <div class="mb-8">
+                    <div class="flex items-center gap-2 mb-3 px-1">
+                        <div class="w-1 h-6 rounded-full ${cat.color}"></div>
+                        <h3 class="font-black text-slate-700 uppercase tracking-wider text-sm">${cat.key}</h3>
+                    </div>
+                    <div class="overflow-x-auto rounded-3xl border border-slate-100 shadow-sm">
+                        <table class="w-full text-left border-collapse bg-white">
+                            <thead>
+                                <tr class="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                                    <th class="p-4 border-b">No</th>
+                                    <th class="p-4 border-b">Jenis Kendaraan</th>
+                                    <th class="p-4 border-b">Nopol</th>
+                                    <th class="p-4 border-b">Lokasi / Tujuan</th>
+                                    <th class="p-4 border-b">Status</th>
+                                    <th class="p-4 border-b">PIC</th>
+                                    <th class="p-4 border-b">Driver</th>
+                                    <th class="p-4 border-b">Keterangan</th>
+                                    <th class="p-4 border-b text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-xs font-medium text-slate-600">
+            `;
+
+            catVehicles.forEach((v, idx) => {
+                const booking = appData.bookings.find(b => b.id_kendaraan === v.id && b.tgl_mulai === filterDate && b.status_approval !== 'Rejected');
+                const isUsed = !!booking && booking.status_approval === 'Approved';
+                
+                html += `
+                    <tr class="hover:bg-slate-50/50 border-b border-slate-50">
+                        <td class="p-4 text-slate-300 font-bold">${idx + 1}</td>
+                        <td class="p-4 font-bold text-slate-800">${v.nama}</td>
+                        <td class="p-4 font-mono text-blue-600 bg-blue-50/30">${v.plat}</td>
+                        <td class="p-4">${booking ? booking.tujuan : '-'}</td>
+                        <td class="p-4">
+                            <span class="px-2 py-1 rounded-lg text-[9px] font-black uppercase ${isUsed ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400'}">
+                                ${isUsed ? 'USED' : 'STANDBY'}
+                            </span>
+                        </td>
+                        <td class="p-4 font-bold text-slate-700">${booking ? booking.nama : '-'}</td>
+                        <td class="p-4">${booking ? (booking.driver || '-') : '-'}</td>
+                        <td class="p-4 italic text-slate-400 truncate max-w-[150px]">${booking ? (booking.keterangan || '-') : '-'}</td>
+                        <td class="p-4 text-right">
+                            ${booking ? `<button onclick="openUpdateModal('${booking.id}')" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition">Edit</button>` : `<span class="text-slate-300">-</span>`}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table></div></div>`;
+            container.innerHTML += html;
+        });
+    }
+
+    // --- LOGIC FUNCTIONS ---
+    function selectVehicle(id, text) {
+        selectedVehicleId = id;
+        document.getElementById('formKendaraan').value = text;
+        // Scroll smooth to sidebar on mobile
+        if(window.innerWidth < 1024) {
+            document.getElementById('formNama').scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function openUpdateModal(id) {
+        currentUpdateId = id;
+        const b = appData.bookings.find(x => x.id === id);
+        document.getElementById('upDriver').value = b.driver || "";
+        document.getElementById('upKeterangan').value = b.keterangan || "";
+        document.getElementById('upStatus').value = b.status_approval;
+        document.getElementById('updateModal').classList.remove('hidden');
+    }
+
+    function closeUpdateModal() { document.getElementById('updateModal').classList.add('hidden'); }
+
+    function saveUpdateStatus() {
+        const data = {
+            id: currentUpdateId,
+            driver: document.getElementById('upDriver').value,
+            keterangan: document.getElementById('upKeterangan').value,
+            status: document.getElementById('upStatus').value
+        };
+
+        if(IS_PREVIEW) {
+            const idx = appData.bookings.findIndex(b => b.id === data.id);
+            appData.bookings[idx] = { ...appData.bookings[idx], ...data, status_approval: data.status };
+            closeUpdateModal();
+            renderMonitoringTable();
+            showNotif("Sukses", "Data harian diperbarui.");
+        } else {
+            apiCall("updateDetailBooking", data, () => {
+                closeUpdateModal();
+                fetchAdminData();
+            });
+        }
+    }
+
+    function submitBooking() {
+        const data = {
+            nama: document.getElementById('formNama').value,
+            divisi: document.getElementById('formDivisi').value,
+            id_kendaraan: selectedVehicleId,
+            tgl_mulai: document.getElementById('formTglMulai').value,
+            tujuan: document.getElementById('formTujuan').value
+        };
+
+        if(!data.nama || !data.id_kendaraan || !data.tgl_mulai) return showNotif("Data Kurang", "Mohon isi nama PIC dan pilih kendaraan terlebih dahulu.");
+
+        if(IS_PREVIEW) {
+            const v = appData.vehicles.find(x => x.id === selectedVehicleId);
+            appData.bookings.push({ ...data, id: "B"+Date.now(), kendaraan: v.nama, plat: v.plat, status_approval: "Pending", driver: "", keterangan: "" });
+            showNotif("Berhasil!", "Booking Anda telah masuk ke sistem. Silahkan cek status secara berkala.");
+            resetForm();
+        } else {
+            apiCall("saveBooking", data, () => { showNotif("Berhasil!", "Booking dikirim."); resetForm(); });
+        }
+    }
+
+    function doLogin() {
+        const u = document.getElementById('loginUser').value;
+        const p = document.getElementById('loginPass').value;
+        if(u === "admin" && p === "edudigital") {
+            document.getElementById('adminNavBtn').classList.add('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            switchView('admin');
+            fetchAdminData();
+        } else {
+            showNotif("Gagal", "Username atau Password salah.");
+        }
+    }
+
+    function doLogout() { location.reload(); }
+
+    function fetchAdminData() {
+        if(IS_PREVIEW) renderMonitoringTable();
+        else apiCall("getAdminData", { date: document.getElementById('filterDate').value }, (res) => { appData = res; renderMonitoringTable(); });
+    }
+
+    function refreshPublicData() {
+        apiCall("getPublicData", {}, (res) => { appData = res; renderVehicles(); });
+    }
+
+    function apiCall(action, data, cb) {
+        fetch(`${GAS_URL}?action=${action}`, { method: "POST", body: JSON.stringify(data) })
+        .then(r => r.json()).then(cb).catch(e => {
+            console.error(e);
+            showNotif("Error", "Gagal terhubung ke server.");
+        });
+    }
+
+    function searchStatus() {
+        const query = document.getElementById('searchNIP').value.toLowerCase();
+        if(!query) return;
+        const results = appData.bookings.filter(b => b.nama.toLowerCase().includes(query));
+        const resDiv = document.getElementById('searchResult');
+        resDiv.innerHTML = '';
+        if(results.length === 0) {
+            resDiv.innerHTML = `<div class="p-4 bg-slate-50 text-slate-400 text-center rounded-2xl text-sm font-medium">Data tidak ditemukan.</div>`;
+        } else {
+            results.reverse().forEach(r => {
+                const statusColor = r.status_approval === 'Approved' ? 'bg-emerald-100 text-emerald-700' : (r.status_approval === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+                resDiv.innerHTML += `
+                    <div class="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-400">${r.tgl_mulai}</span>
+                            <span class="text-[10px] font-black px-2 py-1 rounded-lg ${statusColor} uppercase">${r.status_approval}</span>
+                        </div>
+                        <h4 class="font-bold text-slate-800">${r.kendaraan}</h4>
+                        <p class="text-[10px] text-slate-400 font-mono mb-2">${r.plat}</p>
+                        <div class="pt-2 border-t border-dashed flex justify-between items-center">
+                            <span class="text-[10px] text-slate-500">Supir: <span class="font-bold">${r.driver || 'Menunggu'}</span></span>
+                            <span class="text-[10px] text-slate-500">Tujuan: <span class="font-bold">${r.tujuan}</span></span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    }
+
+    function showNotif(t, m) {
+        document.getElementById('notifTitle').innerText = t;
+        document.getElementById('notifMsg').innerText = m;
+        document.getElementById('notifModal').classList.remove('hidden');
+    }
+    function closeNotif() { document.getElementById('notifModal').classList.add('hidden'); }
+    function resetForm() {
+        document.getElementById('formNama').value = "";
+        document.getElementById('formDivisi').value = "";
+        document.getElementById('formKendaraan').value = "";
+        document.getElementById('formTujuan').value = "";
+        selectedVehicleId = "";
+    }
+</script>
+</body>
+</html>
