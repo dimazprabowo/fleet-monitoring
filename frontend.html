@@ -1,519 +1,1640 @@
+<!--
+  FLEET MONITORING SYSTEM — FRONTEND
+  Versi: 2.0  (Single-file untuk dipasang di Blogger / website manapun)
+
+  CARA PAKAI DI BLOGGER:
+    1. Deploy backend.js sebagai Web App (Anyone) → salin URL /exec
+    2. Edit baris GAS_URL di bawah
+    3. Set IS_PREVIEW = false
+    4. Buat halaman/postingan baru di Blogger → mode HTML → paste seluruh isi file ini
+    5. Publikasikan
+-->
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booking Kendaraan Operasional - Monitoring Harian</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        .full-page-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #f8fafc; z-index: 9999; overflow-y: auto;
-        }
-        .view-section { transition: all 0.3s ease; }
-        .bg-operasional { background-color: #0ea5e9; } /* Biru */
-        .bg-project { background-color: #f59e0b; }     /* Amber/Oranye */
-        .bg-struktural { background-color: #10b981; }  /* Emerald/Hijau */
-        .blogger-hidden { display: none !important; }
-        
-        /* Smooth Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fleet Monitoring System</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  #fms-app { background: #f1f5f9; min-height: 100vh; }
+  .fms-overlay {
+    position: fixed; inset: 0; background: #f1f5f9;
+    z-index: 99990; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .fms-cat-harian   { --c: #0ea5e9; }
+  .fms-cat-project  { --c: #f59e0b; }
+  .fms-cat-struk    { --c: #10b981; }
+  .fms-bar { width: 4px; border-radius: 99px; background: var(--c); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  /* Override hover saat tombol nav aktif (gelap) supaya tidak jadi terang */
+  .fms-nav.bg-slate-900:hover { background-color: #1e293b !important; color: #fff !important; }
+  /* Indikator visual bahwa tabel bisa di-scroll horizontal di mobile */
+  .fms-table-wrap { position: relative; }
+  .fms-table-wrap::after {
+    content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 24px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, rgba(15,23,42,0.06));
+  }
+  @media (min-width: 1024px) { .fms-table-wrap::after { display: none; } }
+  .fade-in { animation: fadeIn .25s ease both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 </head>
 <body>
 
-<div id="app" class="full-page-overlay p-2 md:p-6">
-    <!-- Configuration -->
-    <script>
-        const IS_PREVIEW = true; 
-        const GAS_URL = "URL_DEPLOY_GAS_ANDA_DISINI";
-        
-        // Data Dummy Terupdate sesuai Kategori Gambar
-        const DUMMY_VEHICLES = [
-            { id: "V1", nama: "EXPANDER", plat: "B 2094 UYN", kategori: "Operasional Harian", status: "Tersedia" },
-            { id: "V2", nama: "AVANZA", plat: "B 2386 UYV", kategori: "Operasional Harian", status: "Tersedia" },
-            { id: "V6", nama: "VELLOZ", plat: "B 1181 DKO", kategori: "Operasional Harian", status: "Tersedia" },
-            { id: "V3", nama: "TOYOTA INNOVA", plat: "BG 1896 NH", kategori: "Project", status: "Tersedia" },
-            { id: "V4", nama: "TOYOTA HILUX", plat: "B 9420 UBC", kategori: "Project", status: "Tersedia" },
-            { id: "V7", nama: "MITSUBISHI TRITON", plat: "BG 8587 GD", kategori: "Project", status: "Tersedia" },
-            { id: "V5", nama: "INNOVA ZENIX", plat: "B 1083 VZH", kategori: "Operasional Struktural", status: "Tersedia" },
-            { id: "V8", nama: "HONDA BRV", plat: "B 1625 RZF", kategori: "Operasional Struktural", status: "Tersedia" }
-        ];
-        const DUMMY_BOOKINGS = [
-            { id: "B1", nama: "TEDJO", divisi: "MBG", id_kendaraan: "V1", kendaraan: "EXPANDER", plat: "B 2094 UYN", tgl_mulai: "2026-04-27", tgl_selesai: "2026-04-27", tujuan: "MBG", status_approval: "Approved", driver: "-", keterangan: "Urgent" }
-        ];
-    </script>
+<div id="fms-app" class="fms-overlay">
 
-    <!-- Header Navigation -->
-    <nav class="max-w-[1600px] mx-auto flex flex-wrap justify-between items-center mb-6 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-600 p-2 rounded-lg text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0" />
-                </svg>
-            </div>
-            <div>
-                <h1 class="text-lg font-bold text-slate-800 leading-tight">FleetMonitoring</h1>
-                <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Vehicle Management System</p>
-            </div>
-        </div>
-        <div class="flex gap-2">
-            <button onclick="switchView('home')" class="px-4 py-2 rounded-xl text-sm font-semibold hover:bg-slate-100 transition text-slate-600">Booking</button>
-            <button onclick="switchView('check')" class="px-4 py-2 rounded-xl text-sm font-semibold hover:bg-slate-100 transition text-slate-600">Cek Status</button>
-            <button id="adminNavBtn" onclick="switchView('login')" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-black transition">Admin Portal</button>
-            <button id="logoutBtn" onclick="doLogout()" class="hidden bg-red-50 text-red-600 px-5 py-2 rounded-xl text-sm font-bold hover:bg-red-100 transition border border-red-200">Keluar</button>
-        </div>
+<!-- ================= CONFIG ================= -->
+<script>
+  // GANTI URL INI dengan URL deploy backend Anda (https://script.google.com/macros/s/.../exec)
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwmWNAhZ5-IpwZ1JDXFd8Ebl_ajBWqL9btcHRE1wvjWdags-zuFcL9nfKfY4RLCRehthg/exec";
+  // Set ke false setelah backend siap dan GAS_URL terisi
+  const IS_PREVIEW = false;
+
+  const CATEGORIES = [
+    { key: "Operasional Harian",     short: "harian",   color: "sky",     hex: "#0ea5e9" },
+    { key: "Project",                 short: "project",  color: "amber",   hex: "#f59e0b" },
+    { key: "Operasional Struktural",  short: "struk",    color: "emerald", hex: "#10b981" },
+  ];
+
+  // Dummy data untuk preview offline
+  const DUMMY_VEHICLES = [
+    { id:"V001", nama:"EXPANDER", plat:"B 2094 UYN", kategori:"Operasional Harian", status:"Tersedia" },
+    { id:"V002", nama:"AVANZA",   plat:"B 2386 UYV", kategori:"Operasional Harian", status:"Tersedia" },
+    { id:"V003", nama:"VELLOZ",   plat:"B 1181 DKO", kategori:"Operasional Harian", status:"Tersedia" },
+    { id:"V016", nama:"TOYOTA HILUX", plat:"B 9420 UBC", kategori:"Project", status:"Tersedia" },
+    { id:"V017", nama:"MITSUBISHI TRITON", plat:"BG 8587 GD", kategori:"Project", status:"Tersedia" },
+    { id:"V025", nama:"INNOVA ZENIX", plat:"B 1083 VZH", kategori:"Operasional Struktural", status:"Tersedia" },
+    { id:"V026", nama:"HONDA BRV", plat:"B 1625 RZF", kategori:"Operasional Struktural", status:"Tersedia" },
+  ];
+  const DUMMY_BOOKINGS = [
+    { id:"BK-1", tanggal: new Date().toISOString().slice(0,10), vehicle_id:"V001", pic:"TEDJO", divisi:"MBG", tujuan:"MBG", status:"Approved", driver:"", keterangan:"" },
+    { id:"BK-2", tanggal: new Date().toISOString().slice(0,10), vehicle_id:"V016", pic:"ZIAUDDIN", divisi:"PHR", tujuan:"PALEMBANG", status:"Approved", driver:"UCOK", keterangan:"PROJECT PHR" },
+  ];
+</script>
+
+<!-- ================= HEADER ================= -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+  <div class="max-w-[1600px] mx-auto px-3 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="bg-gradient-to-br from-blue-600 to-blue-800 w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-md shadow-blue-200 flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 17h8m-8 0a2 2 0 11-4 0m4 0a2 2 0 10-4 0m12 0a2 2 0 11-4 0m4 0a2 2 0 10-4 0M3 17V8a1 1 0 011-1h10v10M14 7h3.586a1 1 0 01.707.293l2.414 2.414a1 1 0 01.293.707V17"/></svg>
+      </div>
+      <div>
+        <h1 class="text-base sm:text-lg font-extrabold text-slate-800 leading-tight tracking-tight">Fleet Monitoring</h1>
+        <p class="hidden sm:block text-[10px] text-slate-400 font-semibold uppercase tracking-[0.15em]">Vehicle Booking System</p>
+      </div>
+    </div>
+    <nav class="flex items-center gap-1 sm:gap-2 flex-wrap">
+      <button data-nav="public-home"   class="fms-nav px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">Booking</button>
+      <button data-nav="public-check"  class="fms-nav px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100">Cek Status</button>
+      <span id="navAdminWrap"></span>
     </nav>
+  </div>
+</header>
 
-    <!-- Main Content Area -->
-    <main class="max-w-[1600px] mx-auto">
-        
-        <!-- VIEW: HOME (Grid Kendaraan Terbagi Section) -->
-        <section id="view-home" class="view-section">
-            <div class="flex flex-col lg:flex-row gap-8">
-                <!-- Grid Area dengan 3 Section -->
-                <div class="flex-1 space-y-10">
-                    
-                    <!-- Section 1: Operasional Harian -->
-                    <div>
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-2 h-8 bg-operasional rounded-full"></div>
-                            <h2 class="text-xl font-black text-slate-800 tracking-tight">OPERASIONAL HARIAN</h2>
-                        </div>
-                        <div id="grid-harian" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                            <!-- Rendered via JS -->
-                        </div>
-                    </div>
+<!-- ================= MAIN ================= -->
+<main id="fmsMain" class="max-w-[1600px] mx-auto px-3 sm:px-6 py-4 sm:py-6"></main>
 
-                    <!-- Section 2: Project -->
-                    <div>
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-2 h-8 bg-project rounded-full"></div>
-                            <h2 class="text-xl font-black text-slate-800 tracking-tight">PROJECT</h2>
-                        </div>
-                        <div id="grid-project" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                            <!-- Rendered via JS -->
-                        </div>
-                    </div>
+<!-- ================= MODAL ROOT ================= -->
+<div id="fmsModalRoot"></div>
 
-                    <!-- Section 3: Operasional Struktural -->
-                    <div>
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-2 h-8 bg-struktural rounded-full"></div>
-                            <h2 class="text-xl font-black text-slate-800 tracking-tight">OPERASIONAL STRUKTURAL</h2>
-                        </div>
-                        <div id="grid-struktural" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                            <!-- Rendered via JS -->
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Booking Sidebar -->
-                <div class="lg:w-80 bg-white p-6 rounded-3xl shadow-sm border border-slate-200 h-fit sticky top-6">
-                    <div class="flex items-center gap-2 mb-4 border-b pb-3">
-                        <div class="p-2 bg-blue-50 rounded-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                        </div>
-                        <h3 class="font-bold text-slate-800">Detail Booking</h3>
-                    </div>
-                    <div class="space-y-4">
-                        <input type="text" id="formNama" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none text-sm focus:ring-2 focus:ring-blue-500" placeholder="Nama PIC">
-                        <input type="text" id="formDivisi" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none text-sm focus:ring-2 focus:ring-blue-500" placeholder="Divisi">
-                        <div class="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                            <label class="text-[10px] font-bold text-blue-400 uppercase">Armada Terpilih</label>
-                            <input type="text" id="formKendaraan" readonly class="w-full bg-transparent border-none p-0 text-blue-700 font-bold focus:ring-0 text-sm" placeholder="Klik salah satu kartu...">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase px-1">Tanggal Penggunaan</label>
-                            <input type="date" id="formTglMulai" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none text-sm">
-                        </div>
-                        <textarea id="formTujuan" rows="2" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none text-sm focus:ring-2 focus:ring-blue-500" placeholder="Tujuan / Lokasi"></textarea>
-                        <button onclick="submitBooking()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">Ajukan Sekarang</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- VIEW: MONITORING / ADMIN -->
-        <section id="view-admin" class="view-section hidden">
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
-                    <div>
-                        <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tight">Monitoring History Harian</h2>
-                        <p class="text-sm text-slate-400">Kelola status kendaraan & persetujuan driver</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="date" id="filterDate" onchange="fetchAdminData()" class="px-4 py-2 border rounded-xl text-sm font-bold bg-slate-50">
-                        <button onclick="openAddVehicle()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-black transition">Tambah Armada</button>
-                    </div>
-                </div>
-
-                <!-- Monitoring Table - Mimicking the Excel Structure -->
-                <div class="space-y-8" id="monitoringContent">
-                    <!-- Section per Kategori akan muncul di sini -->
-                </div>
-            </div>
-        </section>
-
-        <!-- VIEW: CHECK STATUS -->
-        <section id="view-check" class="view-section hidden max-w-2xl mx-auto py-10">
-            <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100">
-                <h2 class="text-2xl font-bold mb-2">Lacak Pengajuan</h2>
-                <p class="text-sm text-slate-400 mb-6">Masukkan nama PIC untuk melihat status approval.</p>
-                <div class="flex gap-2 mb-8">
-                    <input type="text" id="searchNIP" class="flex-1 px-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-800 transition" placeholder="Cari Nama PIC...">
-                    <button onclick="searchStatus()" class="bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold hover:bg-black transition">Cari</button>
-                </div>
-                <div id="searchResult" class="space-y-3"></div>
-            </div>
-        </section>
-
-        <!-- VIEW: LOGIN -->
-        <section id="view-login" class="view-section hidden max-w-md mx-auto py-12">
-            <div class="bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 text-center">
-                <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                </div>
-                <h2 class="text-2xl font-black mb-2 uppercase">Admin Access</h2>
-                <p class="text-xs text-slate-400 mb-6">Silahkan login untuk mengelola fleet harian.</p>
-                <div class="space-y-4">
-                    <input type="text" id="loginUser" class="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none text-sm" placeholder="Username">
-                    <input type="password" id="loginPass" class="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none text-sm" placeholder="Password">
-                    <button onclick="doLogin()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Masuk Dashboard</button>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Modal Update Detail (Admin) -->
-    <div id="updateModal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center p-4 z-[10000]">
-        <div class="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl">
-            <h3 class="text-xl font-bold mb-4">Update Status Operasional</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Driver / Supir</label>
-                    <input type="text" id="upDriver" class="w-full px-4 py-3 border rounded-xl mt-1 text-sm">
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Keterangan Tambahan</label>
-                    <textarea id="upKeterangan" class="w-full px-4 py-3 border rounded-xl mt-1 text-sm" rows="2"></textarea>
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Status Approval</label>
-                    <select id="upStatus" class="w-full px-4 py-3 border rounded-xl mt-1 text-sm">
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved (USED)</option>
-                        <option value="Rejected">Rejected</option>
-                    </select>
-                </div>
-                <div class="flex gap-2 pt-4">
-                    <button onclick="closeUpdateModal()" class="flex-1 py-3 font-bold text-slate-400 text-sm">Batal</button>
-                    <button onclick="saveUpdateStatus()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold text-sm">Simpan</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Notification -->
-    <div id="notifModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-[11000]">
-        <div class="bg-white p-6 rounded-2xl max-w-xs w-full text-center shadow-2xl">
-            <div id="notifIcon" class="mb-3 mx-auto w-12 h-12 rounded-full flex items-center justify-center bg-blue-100 text-blue-600">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <h4 id="notifTitle" class="font-bold mb-1"></h4>
-            <p id="notifMsg" class="text-xs text-slate-500 mb-6"></p>
-            <button onclick="closeNotif()" class="w-full bg-slate-800 text-white py-3 rounded-xl text-sm font-bold">Tutup</button>
-        </div>
-    </div>
-</div>
+<!-- ================= TOAST ================= -->
+<div id="fmsToast" class="fixed top-3 left-3 right-3 sm:top-5 sm:right-5 sm:left-auto z-[100000] flex flex-col gap-2 pointer-events-none sm:max-w-sm"></div>
 
 <script>
-    let appData = { vehicles: IS_PREVIEW ? DUMMY_VEHICLES : [], bookings: IS_PREVIEW ? DUMMY_BOOKINGS : [] };
-    let currentUpdateId = null;
-    let selectedVehicleId = "";
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  view: "public-home",
+  date: isoToday(),
+  vehicles: [],
+  bookings: [],
+  schedule: [],
+  user: null,
+  token: localStorage.getItem("fms_token") || null,
+  selectedVehicleId: null,
+  history: [],
+  historyFilter: { from: "", to: "", status: "", kategori: "" },
+  stats: null,
+};
 
-    window.onload = () => {
-        document.getElementById('formTglMulai').valueAsDate = new Date();
-        document.getElementById('filterDate').valueAsDate = new Date();
-        initApp();
+function isoToday() { return new Date().toISOString().slice(0, 10); }
+
+// Date range helpers untuk booking multi-hari
+function addDaysIso(iso, n) {
+  const p = String(iso).split("-").map(x => parseInt(x, 10));
+  const d = new Date(p[0], p[1] - 1, p[2]);
+  d.setDate(d.getDate() + n);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function bookingDurasi(b) { return Math.max(1, parseInt(b.durasi) || 1); }
+function bookingEnd(b) { return addDaysIso(b.tanggal, bookingDurasi(b) - 1); }
+function bookingDates(b) {
+  const n = bookingDurasi(b);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(addDaysIso(b.tanggal, i));
+  return out;
+}
+function rangesOverlap(aStart, aEnd, bStart, bEnd) {
+  return aStart <= bEnd && aEnd >= bStart;
+}
+
+// ============================================================
+// API CLIENT — JSONP supaya aman dari Blogger (cross-origin)
+// ============================================================
+let _jsonpCounter = 0;
+function api(action, params = {}) {
+  return new Promise((resolve) => {
+    if (IS_PREVIEW) return resolve(mockApi(action, params));
+
+    const cbName = "fmsCb_" + (++_jsonpCounter) + "_" + Date.now();
+    const url = new URL(GAS_URL);
+    url.searchParams.set("action", action);
+    url.searchParams.set("callback", cbName);
+    Object.keys(params).forEach(k => {
+      if (params[k] !== undefined && params[k] !== null) url.searchParams.set(k, params[k]);
+    });
+
+    const script = document.createElement("script");
+    let done = false;
+    const cleanup = () => {
+      try { delete window[cbName]; } catch(e) { window[cbName] = undefined; }
+      if (script.parentNode) script.parentNode.removeChild(script);
     };
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true; cleanup();
+      resolve({ success: false, msg: "Timeout — periksa GAS_URL & deploy." });
+    }, 25000);
 
-    function initApp() {
-        if (!IS_PREVIEW) refreshPublicData();
-        else renderVehicles();
+    window[cbName] = (data) => {
+      if (done) return;
+      done = true; clearTimeout(timer); cleanup();
+      resolve(data);
+    };
+    script.onerror = () => {
+      if (done) return;
+      done = true; clearTimeout(timer); cleanup();
+      resolve({ success: false, msg: "Gagal terhubung ke server." });
+    };
+    script.src = url.toString();
+    document.head.appendChild(script);
+  });
+}
+
+// Mock backend untuk preview offline
+function mockApi(action, p) {
+  const today = isoToday();
+  if (!window._mockDb) {
+    window._mockDb = {
+      vehicles: [...DUMMY_VEHICLES],
+      bookings: [...DUMMY_BOOKINGS],
+    };
+  }
+  const db = window._mockDb;
+  const vMap = Object.fromEntries(db.vehicles.map(v => [v.id, v]));
+
+  switch (action) {
+    case "ping": return { success: true };
+    case "getPublicData": {
+      const date = p.date || today;
+      const schedule = db.bookings.filter(b => b.status !== "Rejected");
+      return { success: true, vehicles: db.vehicles, bookings: db.bookings.filter(b => b.tanggal === date), schedule, date };
     }
-
-    function switchView(viewId) {
-        document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
-        document.getElementById(`view-${viewId}`).classList.remove('hidden');
+    case "submitBooking": {
+      const veh = vMap[p.vehicle_id];
+      if (!veh) return { success: false, msg: "Armada tidak ditemukan." };
+      if (veh.status && veh.status !== "Tersedia") return { success: false, msg: `Armada sedang ${veh.status} dan tidak dapat dibooking.` };
+      const durasi = Math.max(1, parseInt(p.durasi) || 1);
+      const newEnd = addDaysIso(p.tanggal, durasi - 1);
+      const conflict = db.bookings.find(b => {
+        if (b.vehicle_id !== p.vehicle_id) return false;
+        if (b.status === "Rejected" || b.status === "Completed") return false;
+        return rangesOverlap(p.tanggal, newEnd, b.tanggal, bookingEnd(b));
+      });
+      if (conflict) return { success: false, msg: `Tanggal bentrok dengan booking ${conflict.tanggal} → ${bookingEnd(conflict)} (${conflict.status}).` };
+      const id = "BK-" + Date.now();
+      db.bookings.push({ id, tanggal: p.tanggal, durasi, vehicle_id: p.vehicle_id, pic: p.pic, divisi: p.divisi, tujuan: p.tujuan, status: "Pending", driver: "", keterangan: "" });
+      return { success: true, msg: "Booking diajukan.", id };
     }
-
-    function renderVehicles() {
-        const categories = [
-            { key: "Operasional Harian", grid: "grid-harian", color: "bg-operasional" },
-            { key: "Project", grid: "grid-project", color: "bg-project" },
-            { key: "Operasional Struktural", grid: "grid-struktural", color: "bg-struktural" }
-        ];
-
-        categories.forEach(cat => {
-            const grid = document.getElementById(cat.grid);
-            if (!grid) return;
-            grid.innerHTML = '';
-            
-            const filtered = appData.vehicles.filter(v => v.kategori === cat.key);
-            
-            if (filtered.length === 0) {
-                grid.innerHTML = `<div class="col-span-full py-10 text-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 text-xs font-bold uppercase tracking-widest">Belum ada armada</div>`;
-                return;
-            }
-
-            filtered.forEach(v => {
-                grid.innerHTML += `
-                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group relative overflow-hidden" onclick="selectVehicle('${v.id}', '${v.nama} (${v.plat})')">
-                        <div class="flex justify-between items-start mb-4">
-                            <span class="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-bold ${cat.color} shadow-sm group-hover:scale-110 transition-transform">
-                                ${v.nama.charAt(0)}
-                            </span>
-                            <div class="flex flex-col items-end">
-                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${v.plat}</span>
-                            </div>
-                        </div>
-                        <h4 class="font-bold text-slate-800 group-hover:text-blue-600 transition truncate">${v.nama}</h4>
-                        <div class="mt-4 flex items-center justify-between">
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">STANDBY</span>
-                            </div>
-                            <div class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        });
+    case "checkStatus": {
+      const q = (p.q || "").toLowerCase();
+      const data = db.bookings.filter(b => (b.pic || "").toLowerCase().includes(q))
+        .map(b => ({ ...b, vehicle_nama: (vMap[b.vehicle_id]||{}).nama || "-", vehicle_plat: (vMap[b.vehicle_id]||{}).plat || "-", kategori: (vMap[b.vehicle_id]||{}).kategori || "-" }));
+      return { success: true, data };
     }
-
-    function renderMonitoringTable() {
-        const container = document.getElementById('monitoringContent');
-        container.innerHTML = '';
-        const categories = [
-            { key: "Operasional Harian", color: "bg-sky-500" },
-            { key: "Project", color: "bg-amber-500" },
-            { key: "Operasional Struktural", color: "bg-emerald-500" }
-        ];
-        const filterDate = document.getElementById('filterDate').value;
-
-        categories.forEach(cat => {
-            const catVehicles = appData.vehicles.filter(v => v.kategori === cat.key);
-            if (catVehicles.length === 0) return;
-
-            let html = `
-                <div class="mb-8">
-                    <div class="flex items-center gap-2 mb-3 px-1">
-                        <div class="w-1 h-6 rounded-full ${cat.color}"></div>
-                        <h3 class="font-black text-slate-700 uppercase tracking-wider text-sm">${cat.key}</h3>
-                    </div>
-                    <div class="overflow-x-auto rounded-3xl border border-slate-100 shadow-sm">
-                        <table class="w-full text-left border-collapse bg-white">
-                            <thead>
-                                <tr class="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                    <th class="p-4 border-b">No</th>
-                                    <th class="p-4 border-b">Jenis Kendaraan</th>
-                                    <th class="p-4 border-b">Nopol</th>
-                                    <th class="p-4 border-b">Lokasi / Tujuan</th>
-                                    <th class="p-4 border-b">Status</th>
-                                    <th class="p-4 border-b">PIC</th>
-                                    <th class="p-4 border-b">Driver</th>
-                                    <th class="p-4 border-b">Keterangan</th>
-                                    <th class="p-4 border-b text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-xs font-medium text-slate-600">
-            `;
-
-            catVehicles.forEach((v, idx) => {
-                const booking = appData.bookings.find(b => b.id_kendaraan === v.id && b.tgl_mulai === filterDate && b.status_approval !== 'Rejected');
-                const isUsed = !!booking && booking.status_approval === 'Approved';
-                
-                html += `
-                    <tr class="hover:bg-slate-50/50 border-b border-slate-50">
-                        <td class="p-4 text-slate-300 font-bold">${idx + 1}</td>
-                        <td class="p-4 font-bold text-slate-800">${v.nama}</td>
-                        <td class="p-4 font-mono text-blue-600 bg-blue-50/30">${v.plat}</td>
-                        <td class="p-4">${booking ? booking.tujuan : '-'}</td>
-                        <td class="p-4">
-                            <span class="px-2 py-1 rounded-lg text-[9px] font-black uppercase ${isUsed ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400'}">
-                                ${isUsed ? 'USED' : 'STANDBY'}
-                            </span>
-                        </td>
-                        <td class="p-4 font-bold text-slate-700">${booking ? booking.nama : '-'}</td>
-                        <td class="p-4">${booking ? (booking.driver || '-') : '-'}</td>
-                        <td class="p-4 italic text-slate-400 truncate max-w-[150px]">${booking ? (booking.keterangan || '-') : '-'}</td>
-                        <td class="p-4 text-right">
-                            ${booking ? `<button onclick="openUpdateModal('${booking.id}')" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition">Edit</button>` : `<span class="text-slate-300">-</span>`}
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += `</tbody></table></div></div>`;
-            container.innerHTML += html;
-        });
+    case "login":
+      if (p.username === "admin" && p.password === "admin123") {
+        return { success: true, user: { id:"U001", username:"admin", name:"Administrator", role:"Admin" }, token: "preview-token" };
+      }
+      return { success: false, msg: "Username / password salah." };
+    case "validateSession":
+      return p.token === "preview-token"
+        ? { success: true, user: { id:"U001", name:"Administrator", role:"Admin" } }
+        : { success: false };
+    case "logout": return { success: true };
+    case "getMonitoring": {
+      const date = p.date || today;
+      const schedule = db.bookings.filter(b => b.status !== "Rejected");
+      return { success: true, vehicles: db.vehicles, bookings: db.bookings.filter(b => b.tanggal === date), schedule, date };
     }
-
-    // --- LOGIC FUNCTIONS ---
-    function selectVehicle(id, text) {
-        selectedVehicleId = id;
-        document.getElementById('formKendaraan').value = text;
-        // Scroll smooth to sidebar on mobile
-        if(window.innerWidth < 1024) {
-            document.getElementById('formNama').scrollIntoView({ behavior: 'smooth' });
-        }
+    case "getBookingHistory": {
+      let rows = db.bookings.map(b => ({ ...b, vehicle_nama: (vMap[b.vehicle_id]||{}).nama || "-", vehicle_plat: (vMap[b.vehicle_id]||{}).plat || "-", kategori: (vMap[b.vehicle_id]||{}).kategori || "-" }));
+      if (p.from)     rows = rows.filter(r => r.tanggal >= p.from);
+      if (p.to)       rows = rows.filter(r => r.tanggal <= p.to);
+      if (p.status)   rows = rows.filter(r => r.status === p.status);
+      if (p.kategori) rows = rows.filter(r => r.kategori === p.kategori);
+      rows.sort((a,b) => b.tanggal.localeCompare(a.tanggal));
+      return { success: true, data: rows };
     }
-
-    function openUpdateModal(id) {
-        currentUpdateId = id;
-        const b = appData.bookings.find(x => x.id === id);
-        document.getElementById('upDriver').value = b.driver || "";
-        document.getElementById('upKeterangan').value = b.keterangan || "";
-        document.getElementById('upStatus').value = b.status_approval;
-        document.getElementById('updateModal').classList.remove('hidden');
+    case "getDashboardStats": {
+      const todays = db.bookings.filter(b => b.tanggal === today);
+      return { success: true, stats: {
+        total_vehicles: db.vehicles.length,
+        by_category: Object.fromEntries(CATEGORIES.map(c => [c.key, db.vehicles.filter(v => v.kategori === c.key).length])),
+        bookings_today: todays.length,
+        used_today: todays.filter(b => b.status === "Approved").length,
+        pending_today: todays.filter(b => b.status === "Pending").length,
+        standby_today: db.vehicles.length - todays.filter(b => b.status === "Approved").length,
+        total_bookings: db.bookings.length,
+        pending_total: db.bookings.filter(b => b.status === "Pending").length,
+      }};
     }
-
-    function closeUpdateModal() { document.getElementById('updateModal').classList.add('hidden'); }
-
-    function saveUpdateStatus() {
-        const data = {
-            id: currentUpdateId,
-            driver: document.getElementById('upDriver').value,
-            keterangan: document.getElementById('upKeterangan').value,
-            status: document.getElementById('upStatus').value
-        };
-
-        if(IS_PREVIEW) {
-            const idx = appData.bookings.findIndex(b => b.id === data.id);
-            appData.bookings[idx] = { ...appData.bookings[idx], ...data, status_approval: data.status };
-            closeUpdateModal();
-            renderMonitoringTable();
-            showNotif("Sukses", "Data harian diperbarui.");
-        } else {
-            apiCall("updateDetailBooking", data, () => {
-                closeUpdateModal();
-                fetchAdminData();
-            });
-        }
+    case "updateBooking": {
+      const b = db.bookings.find(x => x.id === p.id);
+      if (!b) return { success: false, msg: "Tidak ditemukan." };
+      ["status","driver","keterangan","tujuan","pic","divisi","tanggal"].forEach(f => { if (p[f] !== undefined) b[f] = p[f]; });
+      return { success: true };
     }
-
-    function submitBooking() {
-        const data = {
-            nama: document.getElementById('formNama').value,
-            divisi: document.getElementById('formDivisi').value,
-            id_kendaraan: selectedVehicleId,
-            tgl_mulai: document.getElementById('formTglMulai').value,
-            tujuan: document.getElementById('formTujuan').value
-        };
-
-        if(!data.nama || !data.id_kendaraan || !data.tgl_mulai) return showNotif("Data Kurang", "Mohon isi nama PIC dan pilih kendaraan terlebih dahulu.");
-
-        if(IS_PREVIEW) {
-            const v = appData.vehicles.find(x => x.id === selectedVehicleId);
-            appData.bookings.push({ ...data, id: "B"+Date.now(), kendaraan: v.nama, plat: v.plat, status_approval: "Pending", driver: "", keterangan: "" });
-            showNotif("Berhasil!", "Booking Anda telah masuk ke sistem. Silahkan cek status secara berkala.");
-            resetForm();
-        } else {
-            apiCall("saveBooking", data, () => { showNotif("Berhasil!", "Booking dikirim."); resetForm(); });
-        }
+    case "deleteBooking": {
+      const i = db.bookings.findIndex(x => x.id === p.id);
+      if (i < 0) return { success: false, msg: "Tidak ditemukan." };
+      db.bookings.splice(i, 1); return { success: true };
     }
-
-    function doLogin() {
-        const u = document.getElementById('loginUser').value;
-        const p = document.getElementById('loginPass').value;
-        if(u === "admin" && p === "edudigital") {
-            document.getElementById('adminNavBtn').classList.add('hidden');
-            document.getElementById('logoutBtn').classList.remove('hidden');
-            switchView('admin');
-            fetchAdminData();
-        } else {
-            showNotif("Gagal", "Username atau Password salah.");
-        }
+    case "getVehicles": return { success: true, data: db.vehicles };
+    case "addVehicle": {
+      const id = "V" + Date.now();
+      db.vehicles.push({ id, nama: p.nama.toUpperCase(), plat: p.plat.toUpperCase(), kategori: p.kategori, status: "Tersedia" });
+      return { success: true, id };
     }
-
-    function doLogout() { location.reload(); }
-
-    function fetchAdminData() {
-        if(IS_PREVIEW) renderMonitoringTable();
-        else apiCall("getAdminData", { date: document.getElementById('filterDate').value }, (res) => { appData = res; renderMonitoringTable(); });
+    case "updateVehicle": {
+      const v = db.vehicles.find(x => x.id === p.id);
+      if (!v) return { success: false, msg: "Tidak ditemukan." };
+      ["nama","plat","kategori","status"].forEach(f => { if (p[f] !== undefined) v[f] = (f==="nama"||f==="plat")? String(p[f]).toUpperCase() : p[f]; });
+      return { success: true };
     }
+    case "deleteVehicle": {
+      const i = db.vehicles.findIndex(x => x.id === p.id);
+      if (i < 0) return { success: false, msg: "Tidak ditemukan." };
+      // Cek apakah ada booking
+      if (db.bookings.find(b => b.vehicle_id === p.id)) return { success: false, msg: "Armada masih punya history booking." };
+      db.vehicles.splice(i, 1); return { success: true };
+    }
+  }
+  return { success: false, msg: "Mock action tidak dikenal." };
+}
 
-    function refreshPublicData() {
-        apiCall("getPublicData", {}, (res) => { appData = res; renderVehicles(); });
-    }
+// ============================================================
+// UTILS
+// ============================================================
+function $(sel, root = document) { return root.querySelector(sel); }
+function fmtDate(s) {
+  if (!s) return "-";
+  const d = new Date(s);
+  if (isNaN(d)) return s;
+  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+}
+function statusBadge(status) {
+  const map = {
+    "Approved": "bg-blue-100 text-blue-700",
+    "Pending":  "bg-amber-100 text-amber-700",
+    "Rejected": "bg-rose-100 text-rose-700",
+    "Completed":"bg-emerald-100 text-emerald-700",
+  };
+  const label = status === "Approved" ? "USED" : (status || "-").toUpperCase();
+  return `<span class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${map[status] || 'bg-slate-100 text-slate-500'}">${label}</span>`;
+}
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
 
-    function apiCall(action, data, cb) {
-        fetch(`${GAS_URL}?action=${action}`, { method: "POST", body: JSON.stringify(data) })
-        .then(r => r.json()).then(cb).catch(e => {
-            console.error(e);
-            showNotif("Error", "Gagal terhubung ke server.");
-        });
-    }
+function toast(msg, type = "info") {
+  const colors = {
+    success: "bg-emerald-600", error: "bg-rose-600", info: "bg-slate-800", warn: "bg-amber-600"
+  };
+  const el = document.createElement("div");
+  el.className = `pointer-events-auto ${colors[type]} text-white px-4 py-3 rounded-xl shadow-lg text-sm font-medium fade-in max-w-sm`;
+  el.textContent = msg;
+  $("#fmsToast").appendChild(el);
+  setTimeout(() => { el.style.transition = "opacity .3s"; el.style.opacity = "0"; }, 2800);
+  setTimeout(() => el.remove(), 3200);
+}
 
-    function searchStatus() {
-        const query = document.getElementById('searchNIP').value.toLowerCase();
-        if(!query) return;
-        const results = appData.bookings.filter(b => b.nama.toLowerCase().includes(query));
-        const resDiv = document.getElementById('searchResult');
-        resDiv.innerHTML = '';
-        if(results.length === 0) {
-            resDiv.innerHTML = `<div class="p-4 bg-slate-50 text-slate-400 text-center rounded-2xl text-sm font-medium">Data tidak ditemukan.</div>`;
-        } else {
-            results.reverse().forEach(r => {
-                const statusColor = r.status_approval === 'Approved' ? 'bg-emerald-100 text-emerald-700' : (r.status_approval === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
-                resDiv.innerHTML += `
-                    <div class="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                        <div class="flex justify-between mb-2">
-                            <span class="text-xs font-bold text-slate-400">${r.tgl_mulai}</span>
-                            <span class="text-[10px] font-black px-2 py-1 rounded-lg ${statusColor} uppercase">${r.status_approval}</span>
-                        </div>
-                        <h4 class="font-bold text-slate-800">${r.kendaraan}</h4>
-                        <p class="text-[10px] text-slate-400 font-mono mb-2">${r.plat}</p>
-                        <div class="pt-2 border-t border-dashed flex justify-between items-center">
-                            <span class="text-[10px] text-slate-500">Supir: <span class="font-bold">${r.driver || 'Menunggu'}</span></span>
-                            <span class="text-[10px] text-slate-500">Tujuan: <span class="font-bold">${r.tujuan}</span></span>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-    }
+function openModal(html, opts = {}) {
+  const sizeCls = opts.size === "sm" ? "max-w-md" : "max-w-lg";
+  $("#fmsModalRoot").innerHTML = `
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99995] flex items-end sm:items-center justify-center p-0 sm:p-4 fade-in" onclick="if(event.target===this) closeModal()">
+      <div class="bg-white rounded-t-3xl sm:rounded-3xl ${sizeCls} w-full shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">${html}</div>
+    </div>`;
+  document.body.style.overflow = "hidden";
+}
+function closeModal() {
+  $("#fmsModalRoot").innerHTML = "";
+  document.body.style.overflow = "";
+}
 
-    function showNotif(t, m) {
-        document.getElementById('notifTitle').innerText = t;
-        document.getElementById('notifMsg').innerText = m;
-        document.getElementById('notifModal').classList.remove('hidden');
+function confirmDialog(title, msg, onYes) {
+  openModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-extrabold text-slate-800">${escapeHtml(title)}</h3>
+      <p class="text-sm text-slate-500 mt-1 mb-5">${escapeHtml(msg)}</p>
+      <div class="flex gap-2">
+        <button id="confirmNo" class="flex-1 py-3 rounded-xl font-bold text-sm text-slate-500 bg-slate-100 hover:bg-slate-200">Batal</button>
+        <button id="confirmYes" class="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-rose-600 hover:bg-rose-700">Ya, lanjutkan</button>
+      </div>
+    </div>`, { size: "sm" });
+  const yesBtn = $("#confirmYes");
+  const noBtn = $("#confirmNo");
+  noBtn.onclick = () => closeModal();
+  yesBtn.onclick = async () => {
+    setBusy(yesBtn, true);
+    noBtn.disabled = true;
+    try { await onYes(); } catch (e) { console.error(e); }
+    closeModal();
+  };
+}
+
+function setBusy(btn, busy, label) {
+  if (!btn) return;
+  if (busy) {
+    btn.dataset.label = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full spin align-middle"></span>`;
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = label || btn.dataset.label || "OK";
+  }
+}
+
+// ============================================================
+// ROUTER / NAV
+// ============================================================
+function go(view) {
+  state.view = view;
+  document.querySelectorAll(".fms-nav").forEach(b => {
+    b.classList.toggle("bg-slate-900", b.dataset.nav === view);
+    b.classList.toggle("text-white",   b.dataset.nav === view);
+    b.classList.toggle("text-slate-600", b.dataset.nav !== view);
+  });
+  render();
+}
+
+function renderNavAdmin() {
+  const wrap = $("#navAdminWrap");
+  // Navbar selalu minimal: cuma tombol "Panel Admin" (atau "Admin Portal" kalau belum login)
+  const isAdminView = state.view.startsWith("admin-");
+  const target = state.user ? "admin-dashboard" : "login";
+  const label = state.user ? "Panel Admin" : "Admin Portal";
+  wrap.innerHTML = `
+    <button data-nav="${target}" onclick="go('${target}')"
+      class="fms-nav px-4 py-2 rounded-xl text-xs sm:text-sm font-bold ${isAdminView ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+      ${label}
+    </button>`;
+  document.querySelectorAll(".fms-nav").forEach(b => {
+    const active = b.dataset.nav === state.view || (isAdminView && b.dataset.nav === "admin-dashboard");
+    b.classList.toggle("bg-slate-900", active);
+    b.classList.toggle("text-white",   active);
+    if (!active && !b.classList.contains("bg-slate-100")) {
+      b.classList.add("text-slate-600");
     }
-    function closeNotif() { document.getElementById('notifModal').classList.add('hidden'); }
-    function resetForm() {
-        document.getElementById('formNama').value = "";
-        document.getElementById('formDivisi').value = "";
-        document.getElementById('formKendaraan').value = "";
-        document.getElementById('formTujuan').value = "";
-        selectedVehicleId = "";
+  });
+}
+
+// Render shell sidebar untuk view admin
+function renderAdminShell(activeKey, contentHtml) {
+  const items = [
+    { key: "admin-dashboard",  label: "Dashboard",   icon: "M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10" },
+    { key: "admin-monitoring", label: "Monitoring",  icon: "M9 17v-6h13M9 17a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2v10zM22 11V7a2 2 0 00-2-2h-7" },
+    { key: "admin-history",    label: "History",     icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+    { key: "admin-master",     label: "Master Data", icon: "M4 6h16M4 10h16M4 14h16M4 18h16" },
+  ];
+  return `
+    <div class="lg:grid lg:grid-cols-[240px_1fr] gap-6 fade-in">
+      <!-- Mobile: horizontal pill nav -->
+      <div class="lg:hidden bg-white border border-slate-200 rounded-2xl p-2 mb-4">
+        <div class="flex items-center gap-2 overflow-x-auto pb-0.5" style="scrollbar-width:none">
+          ${items.map(it => `
+            <button onclick="go('${it.key}')"
+              class="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap
+                     ${activeKey===it.key ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}">
+              ${it.label}
+            </button>`).join("")}
+          <button onclick="doLogout()" class="flex-shrink-0 ml-auto px-4 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 whitespace-nowrap">
+            ⎋ Logout
+          </button>
+        </div>
+      </div>
+
+      <!-- Desktop: vertical sidebar -->
+      <aside class="hidden lg:flex bg-white border border-slate-200 rounded-3xl p-3 lg:sticky lg:top-6 self-start flex-col" style="min-height: calc(100vh - 8rem)">
+        <div class="px-3 py-3 border-b border-slate-100 mb-2">
+          <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Signed in</p>
+          <p class="font-extrabold text-slate-800 truncate">${escapeHtml(state.user.name)}</p>
+          <p class="text-[10px] text-slate-400 font-semibold mt-0.5 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${escapeHtml(state.user.role || 'Admin')}
+          </p>
+        </div>
+        <nav class="space-y-1 flex-1">
+          ${items.map(it => `
+            <button onclick="go('${it.key}')"
+              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition
+                     ${activeKey===it.key
+                       ? 'bg-blue-50 text-blue-700'
+                       : 'text-slate-600 hover:bg-slate-50'}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="${it.icon}"/></svg>
+              <span>${it.label}</span>
+              ${activeKey===it.key ? '<span class="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600"></span>' : ''}
+            </button>`).join("")}
+        </nav>
+        <button onclick="doLogout()" class="mt-2 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Logout
+        </button>
+      </aside>
+      <section id="adminContent" class="min-w-0">${contentHtml}</section>
+    </div>`;
+}
+
+document.querySelectorAll(".fms-nav").forEach(b => b.addEventListener("click", () => go(b.dataset.nav)));
+
+// ============================================================
+// RENDER ROUTING
+// ============================================================
+function render() {
+  renderNavAdmin();
+  const v = state.view;
+  if (v === "public-home")        return renderPublicHome();
+  if (v === "public-check")       return renderPublicCheck();
+  if (v === "login")              return renderLogin();
+  if (v === "admin-dashboard")    return renderAdminDashboard();
+  if (v === "admin-monitoring")   return renderAdminMonitoring();
+  if (v === "admin-history")      return renderAdminHistory();
+  if (v === "admin-master")       return renderAdminMaster();
+}
+
+// ============================================================
+// VIEW: PUBLIC HOME (Booking)
+// ============================================================
+async function renderPublicHome() {
+  $("#fmsMain").innerHTML = `
+    <div class="text-center py-12">
+      <div class="inline-block w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full spin"></div>
+    </div>`;
+  const res = await api("getPublicData", { date: state.date });
+  if (!res.success) { $("#fmsMain").innerHTML = errorBox(res.msg); return; }
+  state.vehicles = res.vehicles || [];
+  state.bookings = res.bookings || [];
+  state.schedule = res.schedule || res.bookings || [];
+
+  // Carry-over rule: selama Approved belum di-Complete-kan, vehicle tetap USED di hari berikutnya
+  const bookedMap = {};
+  state.vehicles.forEach(v => {
+    const s = getVehicleState(v.id, state.date);
+    if (s.booking) bookedMap[v.id] = s.booking;
+  });
+
+  $("#fmsMain").innerHTML = `
+    <div class="space-y-6 fade-in">
+      <div class="bg-gradient-to-br from-slate-900 to-slate-700 text-white p-5 sm:p-8 rounded-3xl">
+        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-300">Hari ini • ${fmtDate(isoToday())}</p>
+        <h2 class="text-xl sm:text-3xl font-black mt-1">Daftar Armada</h2>
+        <p class="text-xs sm:text-sm text-slate-300 mt-2">Klik kartu kendaraan untuk mengajukan booking.</p>
+        <div class="flex flex-wrap gap-2 mt-4">
+          <span class="bg-white/10 backdrop-blur px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Tersedia</span>
+          <span class="bg-white/10 backdrop-blur px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-400"></span> Sudah dipakai</span>
+          <span class="bg-white/10 backdrop-blur px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Pending</span>
+        </div>
+      </div>
+      ${CATEGORIES.map(c => renderCategorySection(c, bookedMap)).join("")}
+    </div>`;
+}
+
+function labelOfVehicle(id) {
+  const v = state.vehicles.find(x => x.id === id);
+  return v ? `${v.nama} • ${v.plat}` : "—";
+}
+
+function renderCategorySection(cat, bookedMap) {
+  const list = state.vehicles.filter(v => v.kategori === cat.key);
+  if (!list.length) return "";
+  return `
+    <section>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="fms-bar h-7" style="background:${cat.hex}"></div>
+        <h3 class="text-sm font-extrabold text-slate-700 uppercase tracking-[0.15em]">${cat.key}</h3>
+        <span class="text-xs text-slate-400 font-semibold">${list.length} unit</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        ${list.map(v => renderVehicleCard(v, cat, bookedMap[v.id])).join("")}
+      </div>
+    </section>`;
+}
+
+// Tentukan status armada pada tanggal tampil (carry-over + range rule):
+// - Jika ada booking "Approved" yang belum Completed dengan tanggal <= displayDate → USED
+// - Else, kalau ada booking "Pending" dengan range mencakup displayDate → PENDING
+// - Else → STANDBY
+function getVehicleState(vehicleId, displayDate) {
+  const list = state.schedule.filter(b => b.vehicle_id === vehicleId);
+  const ongoingApproved = list
+    .filter(b => b.status === "Approved" && b.tanggal <= displayDate)
+    .sort((a, b) => b.tanggal.localeCompare(a.tanggal))[0];
+  if (ongoingApproved) return { label: "USED", booking: ongoingApproved };
+  const pending = list.find(b => b.status === "Pending" && b.tanggal <= displayDate && bookingEnd(b) >= displayDate);
+  if (pending) return { label: "PENDING", booking: pending };
+  return { label: "STANDBY", booking: null };
+}
+
+// Ambil semua booking aktif (Pending/Approved) untuk satu vehicle yang END-nya >= hari ini
+function getVehicleSchedule(vehicleId) {
+  const today = isoToday();
+  return state.schedule
+    .filter(b => b.vehicle_id === vehicleId && (b.status === "Pending" || b.status === "Approved") && bookingEnd(b) >= today)
+    .sort((a, b) => a.tanggal.localeCompare(b.tanggal));
+}
+
+// Format range: "28 Apr" atau "28 Apr → 02 Mei"
+function fmtRange(b) {
+  if (bookingDurasi(b) <= 1) return fmtDate(b.tanggal);
+  return `${fmtDate(b.tanggal)} → ${fmtDate(bookingEnd(b))}`;
+}
+
+function renderVehicleCard(v, cat, booking) {
+  const isMaintenance = v.status === "Maintenance";
+  const isNonAktif    = v.status === "Non-Aktif";
+  const isOffline     = isMaintenance || isNonAktif;
+  const isUsed    = !isOffline && booking && booking.status === "Approved";
+  const isPending = !isOffline && booking && booking.status === "Pending";
+  const dotColor  = isOffline ? "bg-rose-500"
+                    : (isUsed ? "bg-blue-500" : (isPending ? "bg-amber-500" : "bg-emerald-500"));
+  const stateText = isMaintenance ? "MAINTENANCE"
+                    : (isNonAktif ? "NON-AKTIF"
+                    : (isUsed ? "USED" : (isPending ? "PENDING" : "STANDBY")));
+  const disabled  = isOffline || isUsed || isPending;
+
+  const schedule = getVehicleSchedule(v.id);
+  // Booking yg bukan untuk hari ini = jadwal mendatang
+  const upcoming = schedule.filter(b => b.tanggal !== state.date);
+  const previewItems = upcoming.slice(0, 2);
+  const moreCount = Math.max(0, upcoming.length - previewItems.length);
+
+  const scheduleBlock = upcoming.length === 0 ? "" : `
+    <div class="mt-3 pt-3 border-t border-slate-100">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">📅 Jadwal Mendatang</span>
+        <button onclick="openScheduleModal('${v.id}')" class="text-[10px] font-bold text-blue-600 hover:text-blue-700">Lihat semua</button>
+      </div>
+      <div class="space-y-1">
+        ${previewItems.map(b => {
+          const c = b.status === "Approved" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700";
+          return `<div class="flex items-center justify-between text-[11px] px-2 py-1 rounded-md ${c}">
+            <span class="font-bold">${fmtRange(b)}</span>
+            <span class="font-semibold opacity-70 truncate ml-2">${escapeHtml(b.pic)}</span>
+          </div>`;
+        }).join("")}
+        ${moreCount > 0 ? `<button onclick="openScheduleModal('${v.id}')" class="text-[10px] text-slate-400 hover:text-slate-600 font-semibold">+ ${moreCount} jadwal lain</button>` : ""}
+      </div>
+    </div>`;
+
+  const cardCls = isOffline
+    ? 'bg-rose-50/60 border-rose-200 opacity-80'
+    : (disabled ? 'bg-white border-slate-200 opacity-95' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md');
+
+  let btnHtml;
+  if (isOffline) {
+    btnHtml = `<button disabled class="mt-3 w-full py-2 rounded-xl text-xs font-bold bg-rose-100 text-rose-600 cursor-not-allowed">🔧 Tidak Tersedia</button>`;
+  } else {
+    btnHtml = `<button onclick="openBookingModal('${v.id}')"
+        class="mt-3 w-full py-2 rounded-xl text-xs font-bold transition
+               ${disabled ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white'}">
+        ${disabled ? 'Booking tgl lain' : 'Booking sekarang'}
+      </button>`;
+  }
+
+  return `
+    <div class="p-4 rounded-2xl border transition-all flex flex-col ${cardCls}">
+      <div class="flex items-start justify-between mb-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm" style="background:${cat.hex}">
+          ${escapeHtml(v.nama.charAt(0))}
+        </div>
+        <span class="font-mono text-[10px] font-black text-slate-400 tracking-wider">${escapeHtml(v.plat)}</span>
+      </div>
+      <h4 class="font-bold text-sm text-slate-800 truncate">${escapeHtml(v.nama)}</h4>
+      <div class="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-slate-100">
+        <div class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
+          <span class="text-[10px] font-bold uppercase tracking-wider ${isOffline ? 'text-rose-600' : 'text-slate-500'}">${stateText}</span>
+        </div>
+        ${booking && !isOffline ? `<span class="text-[10px] text-slate-400 truncate max-w-[120px]" title="${escapeHtml(booking.pic)}">PIC: ${escapeHtml(booking.pic)}</span>` : ""}
+      </div>
+      ${isOffline ? "" : scheduleBlock}
+      ${btnHtml}
+    </div>`;
+}
+
+// Modal: tampilkan seluruh jadwal vehicle
+function openScheduleModal(vehicleId) {
+  const v = state.vehicles.find(x => x.id === vehicleId);
+  if (!v) return;
+  const cat = CATEGORIES.find(c => c.key === v.kategori) || {};
+  // Hanya tampilkan booking aktif (Pending/Approved). Rejected & Completed sudah ada di History.
+  const all = state.schedule
+    .filter(b => b.vehicle_id === vehicleId && (b.status === "Pending" || b.status === "Approved"))
+    .sort((a, b) => a.tanggal.localeCompare(b.tanggal));
+
+  openModal(`
+    <div>
+      <div class="p-5 sm:p-6 flex items-center gap-3 border-b border-slate-100" style="background: linear-gradient(135deg, ${cat.hex || '#2563eb'}15, transparent)">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-md flex-shrink-0" style="background:${cat.hex}">
+          ${escapeHtml(v.nama.charAt(0))}
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-extrabold text-slate-800 truncate">${escapeHtml(v.nama)}</h3>
+          <p class="text-xs text-slate-500 font-mono">${escapeHtml(v.plat)} • ${escapeHtml(v.kategori)}</p>
+        </div>
+        <button onclick="closeModal()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center flex-shrink-0">✕</button>
+      </div>
+      <div class="p-5 sm:p-6">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Daftar Booking (${all.length})</h4>
+        ${all.length === 0 ? `
+          <div class="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">Belum ada booking aktif</div>
+        ` : `
+          <div class="space-y-2 max-h-[55vh] overflow-y-auto -mx-1 px-1">
+            ${all.map(b => {
+              const isPast = b.tanggal < isoToday();
+              const canEdit = !!state.user;
+              return `
+              <div class="p-3 rounded-xl border ${isPast ? 'bg-slate-50 border-slate-100 opacity-70' : 'bg-white border-slate-200'}">
+                <div class="flex items-center justify-between mb-1 gap-2">
+                  <span class="font-extrabold text-slate-800 text-sm">${fmtRange(b)}${bookingDurasi(b)>1 ? ` <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md ml-1">${bookingDurasi(b)} hari</span>` : ''}</span>
+                  <div class="flex items-center gap-1.5">
+                    ${statusBadge(b.status)}
+                    ${canEdit ? `<button onclick="closeModal(); openEditBooking('${b.id}')" class="px-2 py-1 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 rounded-md text-[10px] font-bold transition">Edit</button>` : ""}
+                  </div>
+                </div>
+                <div class="text-xs text-slate-600">
+                  <div><span class="text-slate-400">PIC:</span> <b>${escapeHtml(b.pic)}</b> <span class="text-slate-300">•</span> ${escapeHtml(b.divisi)}</div>
+                  <div class="mt-0.5"><span class="text-slate-400">Tujuan:</span> ${escapeHtml(b.tujuan)}</div>
+                </div>
+              </div>`;
+            }).join("")}
+          </div>
+        `}
+        <button onclick="closeModal(); ${state.user ? `openCreateForVehicle('${v.id}')` : `openBookingModal('${v.id}')`}" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-200">+ Booking armada ini</button>
+      </div>
+    </div>`);
+}
+
+function openBookingModal(vehicleId) {
+  const v = state.vehicles.find(x => x.id === vehicleId);
+  if (!v) return;
+  if (v.status && v.status !== "Tersedia") {
+    return toast(`Armada sedang ${v.status} dan tidak dapat dibooking.`, "error");
+  }
+  const cat = CATEGORIES.find(c => c.key === v.kategori) || {};
+  const today = isoToday();
+
+  // Semua booking aktif yang belum berakhir (Pending/Approved) — jadi dasar validasi range
+  const activeBookings = state.schedule
+    .filter(b => b.vehicle_id === vehicleId && (b.status === "Pending" || b.status === "Approved") && bookingEnd(b) >= today);
+  // Expand semua tanggal terkunci dari range booking
+  const bookedDates = {};
+  activeBookings.forEach(b => {
+    bookingDates(b).forEach(d => { if (d >= today) bookedDates[d] = b; });
+  });
+  const bookedDateList = Object.keys(bookedDates).sort();
+
+  // Default tanggal: hari ini kalau belum dibooking, kalau tidak cari hari pertama yang kosong
+  let defaultDate = state.date;
+  if (bookedDates[defaultDate]) {
+    let d = new Date();
+    for (let i = 0; i < 365; i++) {
+      const s = isoDateLocal(d);
+      if (!bookedDates[s] && s >= today) { defaultDate = s; break; }
+      d = new Date(d.getTime() + 86400000);
     }
+  }
+
+  const bookedChips = activeBookings.length === 0 ? "" : `
+    <div class="mx-5 sm:mx-6 mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200">
+      <p class="text-[10px] font-bold uppercase tracking-wider text-amber-700 mb-2">⚠️ Tanggal yang sudah dibooking</p>
+      <div class="flex flex-wrap gap-1.5">
+        ${activeBookings.sort((a,b)=>a.tanggal.localeCompare(b.tanggal)).map(b => {
+          const cls = b.status === "Approved" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-amber-100 text-amber-700 border-amber-200";
+          return `<span class="px-2 py-1 rounded-md text-[10px] font-bold border ${cls}" title="${escapeHtml(b.pic)} - ${escapeHtml(b.status)}">${fmtRange(b)}${bookingDurasi(b)>1 ? ` (${bookingDurasi(b)}h)` : ''}</span>`;
+        }).join("")}
+      </div>
+      <p class="text-[10px] text-amber-600 mt-2">Pilih tanggal + durasi yang tidak bentrok dengan range di atas.</p>
+    </div>`;
+
+  openModal(`
+    <div>
+      <div class="p-5 sm:p-6 flex items-center gap-3 border-b border-slate-100" style="background: linear-gradient(135deg, ${cat.hex || '#2563eb'}15, transparent)">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-md flex-shrink-0" style="background:${cat.hex}">
+          ${escapeHtml(v.nama.charAt(0))}
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-extrabold text-slate-800 truncate">${escapeHtml(v.nama)}</h3>
+          <p class="text-xs text-slate-500 font-mono">${escapeHtml(v.plat)} • ${escapeHtml(v.kategori)}</p>
+        </div>
+        <button onclick="closeModal()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center flex-shrink-0">✕</button>
+      </div>
+      ${bookedChips}
+      <form class="p-5 sm:p-6 space-y-3" onsubmit="event.preventDefault(); submitBookingModal('${v.id}', this)">
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nama PIC</label>
+          <input name="pic" required class="w-full mt-1 px-3 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nama lengkap">
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Divisi</label>
+          <input name="divisi" required class="w-full mt-1 px-3 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Contoh: PHR / MARKETING">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tanggal Mulai</label>
+            <input id="bookDate" name="tanggal" type="date" required value="${defaultDate}" min="${today}"
+              oninput="validateBookRange()"
+              class="w-full mt-1 px-3 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lama Pakai (hari)</label>
+            <input id="bookDurasi" name="durasi" type="number" min="1" max="90" required value="1"
+              oninput="validateBookRange()"
+              class="w-full mt-1 px-3 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+        </div>
+        <div id="bookRangeInfo" class="p-2.5 rounded-lg bg-blue-50 border border-blue-100 text-[11px] text-blue-700 font-semibold">
+          <!-- diisi validateBookRange -->
+        </div>
+        <input type="hidden" id="bookedDatesJson" value='${JSON.stringify(bookedDateList)}'>
+        <p id="bookDateMsg" class="text-[10px] hidden font-bold text-rose-600"></p>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tujuan / Lokasi</label>
+          <textarea name="tujuan" required rows="2" class="w-full mt-1 px-3 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Tujuan penggunaan"></textarea>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal()" class="flex-1 py-3 rounded-xl font-bold text-sm text-slate-500 bg-slate-100 hover:bg-slate-200">Batal</button>
+          <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-200 active:scale-[.98]">Ajukan</button>
+        </div>
+      </form>
+    </div>`);
+  setTimeout(validateBookRange, 0);
+}
+
+function isoDateLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Validasi range start+durasi vs tanggal-tanggal yang sudah dibooking
+function validateBookRange() {
+  const dateInput = $("#bookDate");
+  const durInput = $("#bookDurasi");
+  if (!dateInput || !durInput) return;
+  const start = dateInput.value;
+  const dur = Math.max(1, parseInt(durInput.value) || 1);
+  const booked = JSON.parse(($("#bookedDatesJson") || {}).value || "[]");
+  const info = $("#bookRangeInfo");
+  const msg = $("#bookDateMsg");
+
+  if (!start) return;
+  const end = addDaysIso(start, dur - 1);
+
+  // Expand range [start, end] dan cek apakah ada yg bentrok
+  let conflictDate = null;
+  for (let i = 0; i < dur; i++) {
+    const d = addDaysIso(start, i);
+    if (booked.includes(d)) { conflictDate = d; break; }
+  }
+
+  if (info) {
+    info.innerHTML = dur === 1
+      ? `📅 Dipakai <b>1 hari</b> pada <b>${fmtDate(start)}</b>`
+      : `📅 Dipakai <b>${dur} hari</b>: <b>${fmtDate(start)}</b> s/d <b>${fmtDate(end)}</b>`;
+    info.classList.toggle("bg-blue-50", !conflictDate);
+    info.classList.toggle("border-blue-100", !conflictDate);
+    info.classList.toggle("text-blue-700", !conflictDate);
+    info.classList.toggle("bg-rose-50", !!conflictDate);
+    info.classList.toggle("border-rose-200", !!conflictDate);
+    info.classList.toggle("text-rose-700", !!conflictDate);
+  }
+
+  if (conflictDate) {
+    if (msg) {
+      msg.textContent = `Bentrok di tanggal ${fmtDate(conflictDate)}. Pilih tanggal / durasi lain.`;
+      msg.classList.remove("hidden");
+    }
+    dateInput.setCustomValidity("Range bentrok dengan booking lain.");
+    durInput.setCustomValidity("Range bentrok dengan booking lain.");
+    dateInput.classList.add("ring-2","ring-rose-300");
+    durInput.classList.add("ring-2","ring-rose-300");
+  } else {
+    if (msg) msg.classList.add("hidden");
+    dateInput.setCustomValidity("");
+    durInput.setCustomValidity("");
+    dateInput.classList.remove("ring-2","ring-rose-300");
+    durInput.classList.remove("ring-2","ring-rose-300");
+  }
+}
+
+async function submitBookingModal(vehicleId, form) {
+  const fd = new FormData(form);
+  const payload = {
+    vehicle_id: vehicleId,
+    pic: fd.get("pic").trim(),
+    divisi: fd.get("divisi").trim(),
+    tanggal: fd.get("tanggal"),
+    durasi: Math.max(1, parseInt(fd.get("durasi")) || 1),
+    tujuan: fd.get("tujuan").trim(),
+  };
+  const btn = form.querySelector("button[type=submit]");
+  setBusy(btn, true);
+  const res = await api("submitBooking", payload);
+  setBusy(btn, false);
+  if (!res.success) return toast(res.msg || "Gagal menyimpan.", "error");
+  closeModal();
+  toast("Booking berhasil diajukan! Cek status berkala.", "success");
+  renderPublicHome();
+}
+
+// ============================================================
+// VIEW: PUBLIC CHECK STATUS
+// ============================================================
+function renderPublicCheck() {
+  $("#fmsMain").innerHTML = `
+    <div class="max-w-2xl mx-auto py-6 fade-in">
+      <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200">
+        <h2 class="text-xl font-extrabold text-slate-800">Cek Status Booking</h2>
+        <p class="text-sm text-slate-500 mt-1 mb-5">Masukkan nama PIC untuk melihat semua pengajuan Anda.</p>
+        <form onsubmit="event.preventDefault(); doCheckStatus(this)" class="flex gap-2 mb-5">
+          <input name="q" required placeholder="Nama PIC..." class="flex-1 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          <button class="bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-xl font-bold text-sm">Cari</button>
+        </form>
+        <div id="checkResult"></div>
+      </div>
+    </div>`;
+}
+
+async function doCheckStatus(form) {
+  const q = new FormData(form).get("q").trim();
+  const box = $("#checkResult");
+  box.innerHTML = `<div class="text-center py-6 text-slate-400 text-sm">Mencari...</div>`;
+  const res = await api("checkStatus", { q });
+  if (!res.success) { box.innerHTML = errorBox(res.msg); return; }
+  if (!res.data.length) {
+    box.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-2xl">Tidak ada data booking untuk "${escapeHtml(q)}"</div>`;
+    return;
+  }
+  box.innerHTML = res.data.map(b => `
+    <div class="p-4 mb-2 bg-slate-50 border border-slate-200 rounded-2xl">
+      <div class="flex justify-between items-start gap-2 mb-2">
+        <div>
+          <p class="text-xs text-slate-500 font-semibold">${fmtRange(b)}${bookingDurasi(b)>1 ? ` · <span class="text-blue-600">${bookingDurasi(b)} hari</span>` : ''}</p>
+          <h4 class="font-bold text-slate-800">${escapeHtml(b.vehicle_nama)} <span class="font-mono text-xs text-slate-400">${escapeHtml(b.vehicle_plat)}</span></h4>
+        </div>
+        ${statusBadge(b.status)}
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-2 border-t border-slate-200">
+        <div><span class="text-slate-400">Tujuan:</span> <b>${escapeHtml(b.tujuan)}</b></div>
+        <div><span class="text-slate-400">Driver:</span> <b>${escapeHtml(b.driver) || "-"}</b></div>
+        <div class="col-span-2"><span class="text-slate-400">Keterangan:</span> ${escapeHtml(b.keterangan) || "-"}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+// ============================================================
+// VIEW: LOGIN
+// ============================================================
+function renderLogin() {
+  $("#fmsMain").innerHTML = `
+    <div class="max-w-md mx-auto py-12 fade-in">
+      <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100">
+        <div class="bg-gradient-to-br from-blue-600 to-blue-800 w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg mx-auto mb-5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0-1.105.895-2 2-2s2 .895 2 2-.895 2-2 2-2-.895-2-2zM5 21h14a2 2 0 002-2v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4"/></svg>
+        </div>
+        <h2 class="text-2xl font-black text-center text-slate-800">Admin Portal</h2>
+        <p class="text-xs text-slate-400 text-center mb-6">Masuk untuk mengelola booking armada</p>
+        <form onsubmit="event.preventDefault(); doLogin(this)" class="space-y-3">
+          <input name="username" required placeholder="Username" class="w-full px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          <input name="password" type="password" required placeholder="Password" class="w-full px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-blue-200">Masuk</button>
+        </form>
+        ${IS_PREVIEW ? `<p class="text-[11px] text-slate-400 text-center mt-4">Preview mode • default <b>admin</b> / <b>admin123</b></p>` : ""}
+      </div>
+    </div>`;
+}
+
+async function doLogin(form) {
+  const fd = new FormData(form);
+  const btn = form.querySelector("button");
+  setBusy(btn, true);
+  const res = await api("login", { username: fd.get("username"), password: fd.get("password") });
+  setBusy(btn, false);
+  if (!res.success) return toast(res.msg || "Login gagal.", "error");
+  state.user = res.user;
+  state.token = res.token;
+  localStorage.setItem("fms_token", res.token);
+  toast("Selamat datang, " + res.user.name, "success");
+  go("admin-dashboard");
+}
+
+async function doLogout() {
+  if (state.token) await api("logout", { token: state.token });
+  localStorage.removeItem("fms_token");
+  state.user = null; state.token = null;
+  toast("Anda telah logout.", "info");
+  go("public-home");
+}
+
+async function checkSession() {
+  if (!state.token) return;
+  const res = await api("validateSession", { token: state.token });
+  if (res.success) state.user = res.user;
+  else { localStorage.removeItem("fms_token"); state.token = null; }
+}
+
+// ============================================================
+// VIEW: ADMIN DASHBOARD
+// ============================================================
+async function renderAdminDashboard() {
+  if (!state.user) return go("login");
+  $("#fmsMain").innerHTML = renderAdminShell("admin-dashboard", loadingBlock());
+  const res = await api("getDashboardStats", { token: state.token });
+  if (!res.success) { handleAuthError(res); $("#adminContent").innerHTML = errorBox(res.msg); return; }
+  state.stats = res.stats;
+  const s = res.stats;
+
+  $("#adminContent").innerHTML = `
+    <div class="fade-in">
+      <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+        <div>
+          <h2 class="text-2xl font-black text-slate-800">Dashboard</h2>
+          <p class="text-sm text-slate-500">Ringkasan armada & booking hari ini, ${fmtDate(isoToday())}</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        ${statCard("Total Armada", s.total_vehicles, "blue", "🚗")}
+        ${statCard("Standby", s.standby_today, "emerald", "✅")}
+        ${statCard("Used hari ini", s.used_today, "sky", "📋")}
+        ${statCard("Pending approval", s.pending_today, "amber", "⏳")}
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-4">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200">
+          <h3 class="font-extrabold text-slate-800 mb-4">Komposisi Armada per Kategori</h3>
+          <div class="space-y-3">
+            ${CATEGORIES.map(c => {
+              const n = s.by_category[c.key] || 0;
+              const pct = s.total_vehicles ? Math.round(n/s.total_vehicles*100) : 0;
+              return `
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="font-semibold text-slate-700">${c.key}</span>
+                  <span class="font-bold text-slate-500">${n} <span class="text-xs text-slate-400">(${pct}%)</span></span>
+                </div>
+                <div class="h-2 rounded-full bg-slate-100 overflow-hidden"><div style="width:${pct}%;background:${c.hex}" class="h-full"></div></div>
+              </div>`;
+            }).join("")}
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-3xl border border-slate-200">
+          <h3 class="font-extrabold text-slate-800 mb-4">Quick Actions</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="go('admin-monitoring')" class="p-4 rounded-2xl bg-slate-50 hover:bg-blue-50 hover:text-blue-700 transition text-left">
+              <p class="font-bold text-sm text-slate-700">Monitoring Hari Ini</p>
+              <p class="text-xs text-slate-400 mt-0.5">Edit driver & approval</p>
+            </button>
+            <button onclick="go('admin-history')" class="p-4 rounded-2xl bg-slate-50 hover:bg-blue-50 hover:text-blue-700 transition text-left">
+              <p class="font-bold text-sm text-slate-700">Booking History</p>
+              <p class="text-xs text-slate-400 mt-0.5">${s.total_bookings} total</p>
+            </button>
+            <button onclick="go('admin-master')" class="p-4 rounded-2xl bg-slate-50 hover:bg-blue-50 hover:text-blue-700 transition text-left">
+              <p class="font-bold text-sm text-slate-700">Master Data</p>
+              <p class="text-xs text-slate-400 mt-0.5">Kelola armada</p>
+            </button>
+            <button onclick="go('public-home')" class="p-4 rounded-2xl bg-slate-50 hover:bg-blue-50 hover:text-blue-700 transition text-left">
+              <p class="font-bold text-sm text-slate-700">Public View</p>
+              <p class="text-xs text-slate-400 mt-0.5">Tampilan user</p>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function statCard(label, value, color, emoji) {
+  return `
+    <div class="bg-white p-5 rounded-3xl border border-slate-200">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xl">${emoji}</span>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${label}</span>
+      </div>
+      <p class="text-3xl font-black text-slate-800">${value}</p>
+    </div>`;
+}
+
+// ============================================================
+// VIEW: ADMIN MONITORING (per tanggal, edit booking)
+// ============================================================
+async function renderAdminMonitoring() {
+  if (!state.user) return go("login");
+  $("#fmsMain").innerHTML = renderAdminShell("admin-monitoring", `
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+      <div>
+        <h2 class="text-2xl font-black text-slate-800">Monitoring Harian</h2>
+        <p class="text-sm text-slate-500">Lihat & kelola status armada per tanggal</p>
+      </div>
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <input id="monDate" type="date" value="${state.date}" class="flex-1 sm:flex-none px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold">
+        <button onclick="state.date=$('#monDate').value; renderAdminMonitoring()" class="px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-black whitespace-nowrap">Tampilkan</button>
+      </div>
+    </div>
+    <div id="monBody">${loadingBlock()}</div>`);
+
+  const res = await api("getMonitoring", { token: state.token, date: state.date });
+  if (!res.success) { handleAuthError(res); $("#monBody").innerHTML = errorBox(res.msg); return; }
+  state.vehicles = res.vehicles; state.bookings = res.bookings;
+  state.schedule = res.schedule || res.bookings || [];
+
+  // Carry-over rule: Approved booking yang belum Completed tetap dianggap USED di hari berikutnya
+  const bMap = {};
+  state.vehicles.forEach(v => {
+    const s = getVehicleState(v.id, state.date);
+    if (s.booking) bMap[v.id] = s.booking;
+  });
+
+  $("#monBody").innerHTML = CATEGORIES.map(cat => {
+    const list = state.vehicles.filter(v => v.kategori === cat.key);
+    if (!list.length) return "";
+    return `
+      <div class="mb-6">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="fms-bar h-6" style="background:${cat.hex}"></div>
+          <h3 class="text-sm font-extrabold text-slate-700 uppercase tracking-[0.15em]">${cat.key}</h3>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden fms-table-wrap">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[1000px]">
+              <thead>
+                <tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 whitespace-nowrap">
+                  <th class="text-left p-3 w-10">#</th>
+                  <th class="text-left p-3">Jenis</th>
+                  <th class="text-left p-3">Nopol</th>
+                  <th class="text-left p-3">Tujuan</th>
+                  <th class="text-left p-3">Status</th>
+                  <th class="text-left p-3">PIC</th>
+                  <th class="text-left p-3">Driver</th>
+                  <th class="text-left p-3">Keterangan</th>
+                  <th class="text-left p-3">Jadwal</th>
+                  <th class="text-right p-3">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${list.map((v, i) => {
+                  const isOffline = v.status === "Maintenance" || v.status === "Non-Aktif";
+                  const b = isOffline ? null : bMap[v.id];
+                  const isCarryOver = b && b.tanggal !== state.date;
+                  const upcomingCount = state.schedule.filter(s =>
+                    s.vehicle_id === v.id && s.tanggal > state.date && (s.status === "Pending" || s.status === "Approved")
+                  ).length;
+                  const statusCell = isOffline
+                    ? `<span class="px-2 py-1 rounded-md text-[10px] font-bold uppercase bg-rose-100 text-rose-700">${escapeHtml(v.status)}</span>`
+                    : (b ? statusBadge(b.status) : statusBadge("STANDBY"));
+                  return `
+                  <tr class="border-b border-slate-50 hover:bg-slate-50/50 ${isOffline ? 'bg-rose-50/40' : (isCarryOver ? 'bg-amber-50/40' : '')}">
+                    <td class="p-3 text-slate-300 font-bold">${i+1}</td>
+                    <td class="p-3 font-bold text-slate-700">${escapeHtml(v.nama)}</td>
+                    <td class="p-3 font-mono text-blue-600 text-xs">${escapeHtml(v.plat)}</td>
+                    <td class="p-3 text-slate-600">${b ? escapeHtml(b.tujuan) : '-'}</td>
+                    <td class="p-3">
+                      ${statusCell}
+                      ${b && bookingDurasi(b)>1 ? `<div class="mt-1 text-[9px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded inline-block" title="Lama penggunaan">${bookingDurasi(b)} hari · s/d ${fmtDate(bookingEnd(b))}</div>` : ''}
+                      ${isCarryOver ? `<div class="mt-1 text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded inline-block" title="Booking dari tanggal sebelumnya yang belum di-Completed">⏳ dari ${fmtDate(b.tanggal)}</div>` : ''}
+                    </td>
+                    <td class="p-3 text-slate-700 font-semibold">${b ? escapeHtml(b.pic) : '-'}</td>
+                    <td class="p-3 text-slate-600">${b ? (escapeHtml(b.driver) || '-') : '-'}</td>
+                    <td class="p-3 text-slate-500 italic max-w-[180px] truncate">${b ? (escapeHtml(b.keterangan) || '-') : '-'}</td>
+                    <td class="p-3">
+                      ${isOffline ? '<span class="text-slate-300 text-[11px]">—</span>' : `<button onclick="openScheduleModal('${v.id}')" class="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-lg text-[11px] font-bold border border-slate-200">📅 ${upcomingCount}</button>`}
+                    </td>
+                    <td class="p-3 text-right whitespace-nowrap">
+                      ${isOffline
+                        ? `<button onclick="go('admin-master')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-lg text-xs font-bold transition" title="Kelola di Master Data">Kelola</button>`
+                        : (b
+                          ? `<button onclick="openEditBooking('${b.id}')" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 rounded-lg text-xs font-bold transition">Edit</button>`
+                          : `<button onclick="openCreateForVehicle('${v.id}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-600 rounded-lg text-xs font-bold transition">+ Booking</button>`)}
+                    </td>
+                  </tr>`;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function openEditBooking(id) {
+  // Cari booking di bookings (hari ini) atau di schedule (tanggal lain)
+  const b = state.bookings.find(x => x.id === id) || state.schedule.find(x => x.id === id);
+  if (!b) return;
+  const v = state.vehicles.find(x => x.id === b.vehicle_id) || {};
+  const curDur = bookingDurasi(b);
+  openModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-extrabold text-slate-800">Edit Booking</h3>
+      <p class="text-xs text-slate-400 mt-0.5">${escapeHtml(v.nama)} • ${escapeHtml(v.plat)}</p>
+      <form id="editBookForm" class="space-y-3 mt-5" onsubmit="event.preventDefault(); saveEditBooking('${b.id}', this)">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Tanggal Mulai</label>
+            <input id="editBookDate" name="tanggal" type="date" value="${b.tanggal}" required oninput="updateEditRangeInfo()" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Lama (hari)</label>
+            <input id="editBookDurasi" name="durasi" type="number" min="1" max="90" value="${curDur}" required oninput="updateEditRangeInfo()" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+          </div>
+        </div>
+        <div id="editRangeInfo" class="p-2 rounded-lg bg-blue-50 border border-blue-100 text-[11px] text-blue-700 font-semibold"></div>
+        <p class="text-[10px] text-slate-400 -mt-1">Mengubah tanggal / durasi akan me-reschedule booking ini.</p>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">PIC</label>
+            <input name="pic" value="${escapeHtml(b.pic)}" required class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Divisi</label>
+            <input name="divisi" value="${escapeHtml(b.divisi)}" required class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase">Tujuan</label>
+          <input name="tujuan" value="${escapeHtml(b.tujuan)}" required class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase">Driver</label>
+          <input name="driver" value="${escapeHtml(b.driver || '')}" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm" placeholder="Nama supir (opsional)">
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase">Keterangan</label>
+          <textarea name="keterangan" rows="2" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">${escapeHtml(b.keterangan || '')}</textarea>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase">Status</label>
+          <select name="status" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+            ${["Pending","Approved","Rejected","Completed"].map(s => `<option ${s===b.status?'selected':''}>${s}</option>`).join("")}
+          </select>
+        </div>
+        <div class="flex gap-2 pt-3">
+          <button type="button" onclick="confirmDeleteBooking('${b.id}')" class="px-4 py-3 rounded-xl font-bold text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200">Hapus</button>
+          <button type="button" onclick="closeModal()" class="flex-1 py-3 rounded-xl font-bold text-sm text-slate-500 bg-slate-100 hover:bg-slate-200">Batal</button>
+          <button type="submit" class="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700">Simpan</button>
+        </div>
+      </form>
+    </div>`);
+  setTimeout(updateEditRangeInfo, 0);
+}
+
+function updateEditRangeInfo() {
+  const d = $("#editBookDate"); const n = $("#editBookDurasi");
+  const info = $("#editRangeInfo");
+  if (!d || !n || !info) return;
+  const start = d.value; const dur = Math.max(1, parseInt(n.value) || 1);
+  if (!start) return;
+  const end = addDaysIso(start, dur - 1);
+  info.innerHTML = dur === 1
+    ? `📅 Dipakai <b>1 hari</b> pada <b>${fmtDate(start)}</b>`
+    : `📅 Dipakai <b>${dur} hari</b>: <b>${fmtDate(start)}</b> s/d <b>${fmtDate(end)}</b>`;
+}
+
+async function saveEditBooking(id, form) {
+  const fd = new FormData(form);
+  const payload = { token: state.token, id };
+  ["tanggal","durasi","pic","divisi","tujuan","driver","keterangan","status"].forEach(f => payload[f] = fd.get(f) || "");
+  const btn = form.querySelector("button[type=submit]");
+  setBusy(btn, true);
+  const res = await api("updateBooking", payload);
+  setBusy(btn, false);
+  if (!res.success) return toast(res.msg || "Gagal", "error");
+  closeModal();
+  toast("Booking diperbarui.", "success");
+  renderAdminMonitoring();
+}
+
+function confirmDeleteBooking(id) {
+  confirmDialog("Hapus booking?", "Aksi ini permanen dan tidak bisa di-undo.", async () => {
+    const res = await api("deleteBooking", { token: state.token, id });
+    if (!res.success) return toast(res.msg || "Gagal", "error");
+    toast("Booking dihapus.", "success");
+    renderAdminMonitoring();
+  });
+}
+
+function openCreateForVehicle(vehicleId) {
+  const v = state.vehicles.find(x => x.id === vehicleId);
+  if (!v) return;
+  if (v.status && v.status !== "Tersedia") {
+    return toast(`Armada sedang ${v.status} dan tidak dapat dibooking.`, "error");
+  }
+  // Tanggal yang sudah dibooking (≠Rejected/Completed) — expand range
+  const today = isoToday();
+  const activeBookings = state.schedule
+    .filter(b => b.vehicle_id === vehicleId && (b.status === "Pending" || b.status === "Approved") && bookingEnd(b) >= today);
+  const blocked = [];
+  activeBookings.forEach(b => bookingDates(b).forEach(d => { if (d >= today) blocked.push(d); }));
+  openModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-extrabold text-slate-800">Tambah Booking</h3>
+      <p class="text-xs text-slate-400 mt-0.5">${escapeHtml(v.nama)} • ${escapeHtml(v.plat)}</p>
+      <form class="space-y-3 mt-5" onsubmit="event.preventDefault(); saveCreateBooking('${vehicleId}', this)">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Tanggal Mulai</label>
+            <input id="acDate" name="tanggal" type="date" value="${state.date}" required min="${today}"
+              oninput="validateAdminCreateRange()"
+              class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Lama (hari)</label>
+            <input id="acDurasi" name="durasi" type="number" min="1" max="90" value="1" required
+              oninput="validateAdminCreateRange()"
+              class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+          </div>
+        </div>
+        <div id="acRangeInfo" class="p-2 rounded-lg bg-blue-50 border border-blue-100 text-[11px] text-blue-700 font-semibold"></div>
+        <input type="hidden" id="acBlocked" value='${JSON.stringify(blocked)}'>
+        <p id="adminCreateDateMsg" class="text-[10px] hidden font-bold text-rose-600"></p>
+        ${activeBookings.length ? `<p class="text-[10px] text-slate-400">Terkunci: ${activeBookings.map(b => fmtRange(b)).join(", ")}</p>` : ""}
+        <div class="grid grid-cols-2 gap-2">
+          <div><label class="text-[10px] font-bold text-slate-400 uppercase">PIC</label>
+            <input name="pic" required class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm"></div>
+          <div><label class="text-[10px] font-bold text-slate-400 uppercase">Divisi</label>
+            <input name="divisi" required class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm"></div>
+        </div>
+        <div><label class="text-[10px] font-bold text-slate-400 uppercase">Tujuan</label>
+          <input name="tujuan" required class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm"></div>
+        <div><label class="text-[10px] font-bold text-slate-400 uppercase">Driver</label>
+          <input name="driver" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm"></div>
+        <div><label class="text-[10px] font-bold text-slate-400 uppercase">Keterangan</label>
+          <textarea name="keterangan" rows="2" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm"></textarea></div>
+        <div class="flex gap-2 pt-3">
+          <button type="button" onclick="closeModal()" class="flex-1 py-3 rounded-xl font-bold text-sm text-slate-500 bg-slate-100 hover:bg-slate-200">Batal</button>
+          <button type="submit" class="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700">Buat & Approve</button>
+        </div>
+      </form>
+    </div>`);
+  setTimeout(validateAdminCreateRange, 0);
+}
+
+function validateAdminCreateRange() {
+  const dateInput = $("#acDate"); const durInput = $("#acDurasi");
+  const info = $("#acRangeInfo"); const msg = $("#adminCreateDateMsg");
+  if (!dateInput || !durInput) return;
+  const start = dateInput.value;
+  const dur = Math.max(1, parseInt(durInput.value) || 1);
+  const blocked = JSON.parse(($("#acBlocked") || {}).value || "[]");
+  if (!start) return;
+  const end = addDaysIso(start, dur - 1);
+  let conflictDate = null;
+  for (let i = 0; i < dur; i++) {
+    const d = addDaysIso(start, i);
+    if (blocked.includes(d)) { conflictDate = d; break; }
+  }
+  if (info) {
+    info.innerHTML = dur === 1
+      ? `📅 Dipakai <b>1 hari</b> pada <b>${fmtDate(start)}</b>`
+      : `📅 Dipakai <b>${dur} hari</b>: <b>${fmtDate(start)}</b> s/d <b>${fmtDate(end)}</b>`;
+    info.classList.toggle("bg-blue-50", !conflictDate);
+    info.classList.toggle("border-blue-100", !conflictDate);
+    info.classList.toggle("text-blue-700", !conflictDate);
+    info.classList.toggle("bg-rose-50", !!conflictDate);
+    info.classList.toggle("border-rose-200", !!conflictDate);
+    info.classList.toggle("text-rose-700", !!conflictDate);
+  }
+  if (conflictDate) {
+    if (msg) { msg.textContent = `Bentrok di ${fmtDate(conflictDate)}.`; msg.classList.remove("hidden"); }
+    dateInput.setCustomValidity("Bentrok"); durInput.setCustomValidity("Bentrok");
+    dateInput.classList.add("ring-2","ring-rose-300"); durInput.classList.add("ring-2","ring-rose-300");
+  } else {
+    if (msg) msg.classList.add("hidden");
+    dateInput.setCustomValidity(""); durInput.setCustomValidity("");
+    dateInput.classList.remove("ring-2","ring-rose-300"); durInput.classList.remove("ring-2","ring-rose-300");
+  }
+}
+
+async function saveCreateBooking(vehicleId, form) {
+  const fd = new FormData(form);
+  const tanggal = fd.get("tanggal");
+  const durasi = Math.max(1, parseInt(fd.get("durasi")) || 1);
+  const btn = form.querySelector("button[type=submit]");
+  setBusy(btn, true);
+  const sub = await api("submitBooking", {
+    vehicle_id: vehicleId,
+    pic: fd.get("pic"), divisi: fd.get("divisi"),
+    tujuan: fd.get("tujuan"), tanggal, durasi,
+  });
+  if (!sub.success) { setBusy(btn, false); return toast(sub.msg || "Gagal", "error"); }
+  const upd = await api("updateBooking", {
+    token: state.token, id: sub.id,
+    status: "Approved",
+    driver: fd.get("driver") || "",
+    keterangan: fd.get("keterangan") || "",
+  });
+  setBusy(btn, false);
+  if (!upd.success) return toast(upd.msg || "Gagal approve", "error");
+  closeModal();
+  toast("Booking dibuat & disetujui.", "success");
+  renderAdminMonitoring();
+}
+
+// ============================================================
+// VIEW: ADMIN HISTORY
+// ============================================================
+async function renderAdminHistory() {
+  if (!state.user) return go("login");
+  const f = state.historyFilter;
+
+  $("#fmsMain").innerHTML = renderAdminShell("admin-history", `
+    <div class="mb-5">
+      <h2 class="text-2xl font-black text-slate-800">Booking History</h2>
+      <p class="text-sm text-slate-500">Riwayat seluruh booking dengan filter</p>
+    </div>
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 mb-4 grid grid-cols-2 lg:grid-cols-5 gap-2">
+      <div><label class="text-[10px] font-bold text-slate-400 uppercase">Dari</label>
+        <input id="hFrom" type="date" value="${f.from}" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm"></div>
+      <div><label class="text-[10px] font-bold text-slate-400 uppercase">Sampai</label>
+        <input id="hTo" type="date" value="${f.to}" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm"></div>
+      <div><label class="text-[10px] font-bold text-slate-400 uppercase">Status</label>
+        <select id="hStatus" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+          <option value="">Semua</option>
+          ${["Pending","Approved","Rejected","Completed"].map(s => `<option ${s===f.status?'selected':''}>${s}</option>`).join("")}
+        </select></div>
+      <div><label class="text-[10px] font-bold text-slate-400 uppercase">Kategori</label>
+        <select id="hKat" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+          <option value="">Semua</option>
+          ${CATEGORIES.map(c => `<option ${c.key===f.kategori?'selected':''}>${c.key}</option>`).join("")}
+        </select></div>
+      <div class="col-span-2 lg:col-span-1 flex items-end gap-2">
+        <button onclick="applyHistoryFilter()" class="flex-1 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-bold hover:bg-black">Filter</button>
+        <button onclick="resetHistoryFilter()" class="px-3 py-2.5 rounded-lg bg-slate-100 text-slate-600 text-sm font-bold hover:bg-slate-200">Reset</button>
+      </div>
+    </div>
+    <div id="histBody">${loadingBlock()}</div>`);
+
+  const res = await api("getBookingHistory", { token: state.token, ...f });
+  if (!res.success) { handleAuthError(res); $("#histBody").innerHTML = errorBox(res.msg); return; }
+  state.history = res.data;
+  renderHistoryTable();
+}
+
+function applyHistoryFilter() {
+  state.historyFilter = {
+    from: $("#hFrom").value, to: $("#hTo").value,
+    status: $("#hStatus").value, kategori: $("#hKat").value,
+  };
+  renderAdminHistory();
+}
+function resetHistoryFilter() {
+  state.historyFilter = { from: "", to: "", status: "", kategori: "" };
+  renderAdminHistory();
+}
+
+function renderHistoryTable() {
+  const rows = state.history;
+  if (!rows.length) {
+    $("#histBody").innerHTML = `<div class="text-center py-12 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-2xl bg-white">Tidak ada data booking sesuai filter.</div>`;
+    return;
+  }
+  $("#histBody").innerHTML = `
+    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden fms-table-wrap">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[900px]">
+          <thead><tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 whitespace-nowrap">
+            <th class="text-left p-3">Tanggal</th>
+            <th class="text-left p-3">Kendaraan</th>
+            <th class="text-left p-3">Kategori</th>
+            <th class="text-left p-3">PIC</th>
+            <th class="text-left p-3">Divisi</th>
+            <th class="text-left p-3">Tujuan</th>
+            <th class="text-left p-3">Driver</th>
+            <th class="text-left p-3">Status</th>
+            <th class="text-right p-3">Aksi</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr class="border-b border-slate-50 hover:bg-slate-50/50">
+                <td class="p-3 font-semibold text-slate-700">${fmtRange(r)}${bookingDurasi(r)>1 ? `<br><span class="text-[10px] font-bold text-blue-600">${bookingDurasi(r)} hari</span>` : ''}</td>
+                <td class="p-3"><b>${escapeHtml(r.vehicle_nama)}</b><br><span class="font-mono text-[10px] text-slate-400">${escapeHtml(r.vehicle_plat)}</span></td>
+                <td class="p-3 text-xs text-slate-500">${escapeHtml(r.kategori)}</td>
+                <td class="p-3 font-semibold text-slate-700">${escapeHtml(r.pic)}</td>
+                <td class="p-3 text-slate-600">${escapeHtml(r.divisi)}</td>
+                <td class="p-3 text-slate-600 max-w-[180px] truncate" title="${escapeHtml(r.tujuan)}">${escapeHtml(r.tujuan)}</td>
+                <td class="p-3 text-slate-600">${escapeHtml(r.driver) || '-'}</td>
+                <td class="p-3">${statusBadge(r.status)}</td>
+                <td class="p-3 text-right">
+                  <button onclick="openEditFromHistory('${r.id}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white rounded-lg text-xs font-bold">Detail</button>
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+      <div class="p-3 text-xs text-slate-400 bg-slate-50 border-t border-slate-200">${rows.length} data ditemukan</div>
+    </div>`;
+}
+
+function openEditFromHistory(id) {
+  const r = state.history.find(x => x.id === id);
+  if (!r) return;
+  // Reuse: simulasikan agar saveEditBooking juga berfungsi dari history
+  state.bookings = state.history;
+  state.vehicles = state.vehicles.length ? state.vehicles : [{ id: r.vehicle_id, nama: r.vehicle_nama, plat: r.vehicle_plat }];
+  openEditBooking(id);
+  // Override callback after save → refresh history
+  const oldHandler = window.saveEditBooking;
+  window.saveEditBooking = async (idx, form) => {
+    const fd = new FormData(form);
+    const payload = { token: state.token, id: idx };
+    ["tanggal","durasi","pic","divisi","tujuan","driver","keterangan","status"].forEach(f => payload[f] = fd.get(f) || "");
+    const btn = form.querySelector("button[type=submit]");
+    setBusy(btn, true);
+    const res = await api("updateBooking", payload);
+    setBusy(btn, false);
+    if (!res.success) return toast(res.msg || "Gagal", "error");
+    closeModal();
+    toast("Booking diperbarui.", "success");
+    window.saveEditBooking = oldHandler;
+    renderAdminHistory();
+  };
+}
+
+// ============================================================
+// VIEW: ADMIN MASTER (Vehicles)
+// ============================================================
+async function renderAdminMaster() {
+  if (!state.user) return go("login");
+  $("#fmsMain").innerHTML = renderAdminShell("admin-master", `
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+      <div>
+        <h2 class="text-2xl font-black text-slate-800">Master Data Kendaraan</h2>
+        <p class="text-sm text-slate-500">Kelola seluruh armada</p>
+      </div>
+      <button onclick="openVehicleForm()" class="w-full sm:w-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-200">+ Tambah Armada</button>
+    </div>
+    <div id="masterBody">${loadingBlock()}</div>`);
+
+  const res = await api("getVehicles", { token: state.token });
+  if (!res.success) { handleAuthError(res); $("#masterBody").innerHTML = errorBox(res.msg); return; }
+  state.vehicles = res.data;
+  renderMasterTable();
+}
+
+function renderMasterTable() {
+  const grouped = CATEGORIES.map(c => ({ ...c, items: state.vehicles.filter(v => v.kategori === c.key) }));
+  $("#masterBody").innerHTML = grouped.map(g => `
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="fms-bar h-6" style="background:${g.hex}"></div>
+        <h3 class="text-sm font-extrabold text-slate-700 uppercase tracking-[0.15em]">${g.key}</h3>
+        <span class="text-xs text-slate-400 font-semibold">${g.items.length} unit</span>
+      </div>
+      ${g.items.length ? `
+      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden fms-table-wrap">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[600px]">
+            <thead><tr class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <th class="text-left p-3 w-10">#</th>
+              <th class="text-left p-3">Nama Kendaraan</th>
+              <th class="text-left p-3">Nopol</th>
+              <th class="text-left p-3">Status</th>
+              <th class="text-right p-3">Aksi</th>
+            </tr></thead>
+            <tbody>
+              ${g.items.map((v, i) => `
+                <tr class="border-b border-slate-50 hover:bg-slate-50/50">
+                  <td class="p-3 text-slate-300 font-bold">${i+1}</td>
+                  <td class="p-3 font-bold text-slate-700">${escapeHtml(v.nama)}</td>
+                  <td class="p-3 font-mono text-blue-600">${escapeHtml(v.plat)}</td>
+                  <td class="p-3"><span class="px-2 py-1 rounded-md text-[10px] font-bold uppercase ${v.status==='Tersedia'?'bg-emerald-100 text-emerald-700':(v.status==='Maintenance'?'bg-amber-100 text-amber-700':'bg-rose-100 text-rose-700')}">${escapeHtml(v.status)}</span></td>
+                  <td class="p-3 text-right">
+                    <button onclick="openVehicleForm('${v.id}')" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 rounded-lg text-xs font-bold mr-1">Edit</button>
+                    <button onclick="confirmDeleteVehicle('${v.id}')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded-lg text-xs font-bold">Hapus</button>
+                  </td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>` : `<div class="text-xs text-slate-400 italic">Belum ada armada di kategori ini.</div>`}
+    </div>
+  `).join("");
+}
+
+function openVehicleForm(id) {
+  const v = id ? state.vehicles.find(x => x.id === id) : null;
+  openModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-extrabold text-slate-800">${id ? 'Edit' : 'Tambah'} Armada</h3>
+      <form class="space-y-3 mt-5" onsubmit="event.preventDefault(); saveVehicle('${id||''}', this)">
+        <div><label class="text-[10px] font-bold text-slate-400 uppercase">Nama Kendaraan</label>
+          <input name="nama" required value="${escapeHtml(v?v.nama:'')}" placeholder="Contoh: TOYOTA AVANZA" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm"></div>
+        <div><label class="text-[10px] font-bold text-slate-400 uppercase">Plat Nomor</label>
+          <input name="plat" required value="${escapeHtml(v?v.plat:'')}" placeholder="Contoh: B 1234 ABC" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm"></div>
+        <div><label class="text-[10px] font-bold text-slate-400 uppercase">Kategori</label>
+          <select name="kategori" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+            ${CATEGORIES.map(c => `<option ${v && v.kategori===c.key?'selected':''}>${c.key}</option>`).join("")}
+          </select></div>
+        ${id ? `<div><label class="text-[10px] font-bold text-slate-400 uppercase">Status</label>
+          <select name="status" class="w-full mt-1 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+            ${["Tersedia","Maintenance","Non-Aktif"].map(s => `<option ${v && v.status===s?'selected':''}>${s}</option>`).join("")}
+          </select></div>`:""}
+        <div class="flex gap-2 pt-3">
+          <button type="button" onclick="closeModal()" class="flex-1 py-3 rounded-xl font-bold text-sm text-slate-500 bg-slate-100 hover:bg-slate-200">Batal</button>
+          <button type="submit" class="flex-1 py-3 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700">Simpan</button>
+        </div>
+      </form>
+    </div>`, { size: "sm" });
+}
+
+async function saveVehicle(id, form) {
+  const fd = new FormData(form);
+  const payload = { token: state.token, nama: fd.get("nama"), plat: fd.get("plat"), kategori: fd.get("kategori") };
+  if (id) { payload.id = id; payload.status = fd.get("status"); }
+  const btn = form.querySelector("button[type=submit]");
+  setBusy(btn, true);
+  const res = await api(id ? "updateVehicle" : "addVehicle", payload);
+  setBusy(btn, false);
+  if (!res.success) return toast(res.msg || "Gagal", "error");
+  closeModal();
+  toast(id ? "Armada diperbarui." : "Armada ditambahkan.", "success");
+  renderAdminMaster();
+}
+
+function confirmDeleteVehicle(id) {
+  confirmDialog("Hapus armada?", "Pastikan armada ini tidak punya history booking.", async () => {
+    const res = await api("deleteVehicle", { token: state.token, id });
+    if (!res.success) return toast(res.msg || "Gagal", "error");
+    toast("Armada dihapus.", "success");
+    renderAdminMaster();
+  });
+}
+
+// ============================================================
+// COMMON HELPERS
+// ============================================================
+function loadingBlock() {
+  return `<div class="text-center py-16"><div class="inline-block w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full spin"></div></div>`;
+}
+function errorBox(msg) {
+  return `<div class="p-6 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold">⚠️ ${escapeHtml(msg || "Terjadi kesalahan.")}</div>`;
+}
+function handleAuthError(res) {
+  if (res && res.needLogin) {
+    localStorage.removeItem("fms_token");
+    state.user = null; state.token = null;
+    toast("Sesi berakhir, silakan login ulang.", "warn");
+    setTimeout(() => go("login"), 600);
+  }
+}
+
+// ============================================================
+// BOOTSTRAP
+// ============================================================
+(async () => {
+  await checkSession();
+  go("public-home");
+})();
 </script>
+</div>
 </body>
 </html>
