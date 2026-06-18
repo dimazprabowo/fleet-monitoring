@@ -92,7 +92,7 @@ function setupDatabase() {
   let vSh = SS.getSheetByName(SH_VEHICLES);
   if (!vSh) {
     vSh = SS.insertSheet(SH_VEHICLES);
-    vSh.appendRow(["id","nama","plat","kategori","status","created_at"]);
+    vSh.appendRow(["id","nama","plat","kategori","status","tanggal_kontrak","expired","nama_perusahaan","created_at"]);
 
     // Seed data dari sheet contoh
     const seed = [
@@ -118,7 +118,7 @@ function setupDatabase() {
     ].map(r => [...r, "Operasional Struktural"]);
 
     [...seed, ...proj, ...struk].forEach((r, i) => {
-      vSh.appendRow(["V" + Utilities.formatString("%03d", i + 1), r[0], r[1], r[2], "Tersedia", new Date()]);
+      vSh.appendRow(["V" + Utilities.formatString("%03d", i + 1), r[0], r[1], r[2], "Tersedia", new Date(), "", "", ""]);
     });
   }
 
@@ -146,6 +146,9 @@ function setupDatabase() {
     sh.appendRow(["token","user_id","user_name","user_role","expires_at","created_at"]);
   }
 
+  // 5. Migration untuk kolom kontrak pada vehicles
+  ensureVehiclesSchema();
+
   // Format header
   [SH_VEHICLES, SH_BOOKINGS, SH_USERS, SH_SESSIONS].forEach(name => {
     const sh = SS.getSheetByName(name);
@@ -162,6 +165,11 @@ function setupDatabase() {
 function handleGetPublicData(date) {
   const today = date || isoDate(new Date());
   const vehicles = getSheetData(SH_VEHICLES);
+  // Add contract status to each vehicle
+  const vehiclesWithStatus = vehicles.map(v => ({
+    ...v,
+    contract_status: getContractStatus(v.expired)
+  }));
   const all = getSheetData(SH_BOOKINGS);
   const bookings = all.filter(b => b.tanggal === today);
   // Jadwal aktif: semua booking non-Rejected dari 30 hari lalu sd 180 hari ke depan
@@ -171,7 +179,7 @@ function handleGetPublicData(date) {
   const schedule = all.filter(b =>
     b.status !== "Rejected" && b.tanggal >= minStr && b.tanggal <= maxStr
   );
-  return { success: true, vehicles, bookings, schedule, date: today };
+  return { success: true, vehicles: vehiclesWithStatus, bookings, schedule, date: today };
 }
 
 function handleSubmitBooking(p) {
@@ -249,6 +257,45 @@ function ensureBookingsSchema() {
   }
 }
 
+// Tambah kolom kontrak ke sheet vehicles jika belum ada (migration)
+function ensureVehiclesSchema() {
+  const sh = SS.getSheetByName(SH_VEHICLES);
+  if (!sh) return;
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const newColumns = ["tanggal_kontrak", "expired", "nama_perusahaan"];
+  newColumns.forEach(col => {
+    if (headers.indexOf(col) === -1) {
+      sh.getRange(1, sh.getLastColumn() + 1).setValue(col);
+      // Backfill empty string untuk row lama
+      const n = sh.getLastRow() - 1;
+      if (n > 0) {
+        const colIdx = sh.getLastColumn();
+        sh.getRange(2, colIdx, n, 1).setValues(Array.from({length: n}, () => [""]));
+      }
+      sh.getRange(1, sh.getLastColumn()).setFontWeight("bold").setBackground("#E8F0FE");
+    }
+  });
+}
+
+// Hitung status kontrak berdasarkan tanggal expired
+function getContractStatus(expiredDate) {
+  if (!expiredDate) return { status: "none", color: "" };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const exp = new Date(expiredDate);
+  exp.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor((exp - today) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return { status: "expired", color: "red", label: "Expired" };
+  } else if (diffDays <= 60) {
+    return { status: "warning", color: "yellow", label: "Segera Expired" };
+  } else {
+    return { status: "active", color: "green", label: "Aktif" };
+  }
+}
+
 // Tambah n hari ke ISO date string (yyyy-mm-dd), return ISO
 function addDaysIso(iso, n) {
   const parts = String(iso).split("-").map(x => parseInt(x, 10));
@@ -281,6 +328,11 @@ function handleCheckStatus(q) {
 function handleGetMonitoring(date) {
   const target = date || isoDate(new Date());
   const vehicles = getSheetData(SH_VEHICLES);
+  // Add contract status to each vehicle
+  const vehiclesWithStatus = vehicles.map(v => ({
+    ...v,
+    contract_status: getContractStatus(v.expired)
+  }));
   const all = getSheetData(SH_BOOKINGS);
   const bookings = all.filter(b => b.tanggal === target);
   // Schedule: semua booking non-Rejected dari 60 hari lalu sd 365 hari ke depan
@@ -290,7 +342,7 @@ function handleGetMonitoring(date) {
   const schedule = all.filter(b =>
     b.status !== "Rejected" && b.tanggal >= minStr && b.tanggal <= maxStr
   );
-  return { success: true, vehicles, bookings, schedule, date: target };
+  return { success: true, vehicles: vehiclesWithStatus, bookings, schedule, date: target };
 }
 
 function handleGetBookingHistory(p) {
@@ -378,18 +430,36 @@ function handleAddVehicle(p) {
     return { success: false, msg: "nama, plat, kategori wajib diisi." };
   }
   const sh = SS.getSheetByName(SH_VEHICLES);
+  ensureVehiclesSchema();
   const id = "V" + new Date().getTime();
-  sh.appendRow([id, String(p.nama).trim().toUpperCase(), String(p.plat).trim().toUpperCase(),
-                p.kategori, "Tersedia", new Date()]);
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const row = new Array(headers.length).fill("");
+  const fields = {
+    id: id,
+    nama: String(p.nama).trim().toUpperCase(),
+    plat: String(p.plat).trim().toUpperCase(),
+    kategori: p.kategori,
+    status: "Tersedia",
+    created_at: new Date(),
+    tanggal_kontrak: p.tanggal_kontrak || "",
+    expired: p.expired || "",
+    nama_perusahaan: p.nama_perusahaan || ""
+  };
+  Object.keys(fields).forEach(k => {
+    const c = headers.indexOf(k);
+    if (c !== -1) row[c] = fields[k];
+  });
+  sh.appendRow(row);
   return { success: true, msg: "Armada ditambahkan.", id };
 }
 
 function handleUpdateVehicle(p) {
   if (!p.id) return { success: false, msg: "ID wajib ada." };
   const sh = SS.getSheetByName(SH_VEHICLES);
+  ensureVehiclesSchema();
   const data = sh.getDataRange().getValues();
   const headers = data[0];
-  const fields = ["nama","plat","kategori","status"];
+  const fields = ["nama","plat","kategori","status","tanggal_kontrak","expired","nama_perusahaan"];
 
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === p.id) {
@@ -509,8 +579,12 @@ function getSheetData(sheetName) {
     headers.forEach((header, i) => {
       const v = row[i];
       if (v instanceof Date) {
-        if (header === "tanggal") obj[header] = isoDate(v);
-        else obj[header] = v.toISOString();
+        // Convert date fields to ISO date string (yyyy-mm-dd)
+        if (header === "tanggal" || header === "expired" || header === "tanggal_kontrak") {
+          obj[header] = isoDate(v);
+        } else {
+          obj[header] = v.toISOString();
+        }
       } else {
         obj[header] = v;
       }
