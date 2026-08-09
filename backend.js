@@ -370,6 +370,14 @@ function handleGetDashboardStats() {
   const bookings = getSheetData(SH_BOOKINGS);
   const todays = bookings.filter(b => b.tanggal === today);
 
+  // Booking Approved yang range-nya beririsan dengan hari ini
+  const usedToday = bookings.filter(b => {
+    if (b.status !== "Approved") return false;
+    const dur = Math.max(1, parseInt(b.durasi) || 1);
+    const bEnd = addDaysIso(b.tanggal, dur - 1);
+    return b.tanggal <= today && bEnd >= today;
+  });
+
   return {
     success: true,
     stats: {
@@ -380,9 +388,9 @@ function handleGetDashboardStats() {
         "Operasional Struktural":  vehicles.filter(v => v.kategori === "Operasional Struktural").length,
       },
       bookings_today:  todays.length,
-      used_today:      todays.filter(b => b.status === "Approved").length,
-      pending_today:   todays.filter(b => b.status === "Pending").length,
-      standby_today:   vehicles.length - todays.filter(b => b.status === "Approved").length,
+      used_today:      usedToday.length,
+      pending_today:   bookings.filter(b => b.status === "Pending").length,
+      standby_today:   vehicles.length - usedToday.length,
       total_bookings:  bookings.length,
       pending_total:   bookings.filter(b => b.status === "Pending").length,
     }
